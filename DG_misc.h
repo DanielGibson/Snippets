@@ -45,7 +45,7 @@ const char* DG_GetExecutableFilename(void);
 // Needs to be free'd with free(), returns NULL if allocation failed
 char* DG_strndup(const char* str, size_t n);
 
-// copies up to dstsize-1 bytes from src to dst.
+// copies up to dstsize-1 bytes from src to dst and ensures '\0' termination
 // returns the number of chars that would be written into a big enough dst
 // buffer without the terminating '\0'
 size_t DG_strlcpy(char* dst, const char* src, size_t dstsize);
@@ -58,17 +58,6 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 
 // See also https://www.freebsd.org/cgi/man.cgi?query=strlcpy&sektion=3
 // for details on strlcpy and strlcat.
-// My implementations use (DG_)strlen(), (DG_)strnlen() and memcpy(), which are
-// usually heavily optimized. Thus they're faster than the BSD strl*
-// implementations in most cases (those iterate the strings bytewise themselves)
-// (unless the function call overhead is higher than iterating the bytes,
-//  which only happens for very short strings and is negligible.
-//  Furthermore the speedup depends on how well optimized your libc is.)
-// Note that strlcat() *not* the same as strncat(), which takes the max
-//  number of bytes that should be appended, which is mostly useless.
-// And that strlcpy() is *not* the same as strncpy(), which fills up the unused
-//  part of the buffer with '\0', but doesn't guarantee '\0'-termination if the
-//  buffer isn't big enough.. and thus is pretty useless.
 
 // search for needle in haystack, like strstr(), but for binary data.
 // haystack and needle are buffers with given lengths in byte and will be
@@ -280,7 +269,7 @@ const char* DG_GetExecutableDir(void)
 	
 	if(exePath == NULL || exePath[0] == '\0') return exeDir;
 	
-	strcpy(exeDir, exePath); // both are PATH_MAX, so this should be safe.
+	DG_strlcpy(exeDir, exePath, PATH_MAX);
 	
 	// cut off executable name
 	char* lastSlash = strrchr(exeDir, '/');
@@ -333,6 +322,19 @@ char* DG_strndup(const char* str, size_t n)
 	}
 	return ret;
 }
+
+// Notes on DG_strlcat() and DG_strlcpy():
+// My implementations use (DG_)strlen(), (DG_)strnlen() and memcpy(), which are
+// usually heavily optimized. Thus they're faster than the BSD strl*
+// implementations in most cases (those iterate the strings bytewise themselves)
+// - unless the function call overhead is higher than iterating the bytes,
+//   which only happens for very short strings and is negligible.
+//  Furthermore the speedup depends on how well optimized your libc is.)
+// Note that strlcat() is *not* the same as strncat(), which takes the max
+//  number of bytes that should be appended, which is mostly useless.
+// And that strlcpy() is *not* the same as strncpy(), which fills up the unused
+//  part of the buffer with '\0', but doesn't guarantee '\0'-termination if the
+//  buffer isn't big enough.. and thus is pretty useless.
 
 size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 {
