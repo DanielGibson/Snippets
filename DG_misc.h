@@ -427,6 +427,10 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 	// glibc has a very optimized version of this, use that instead
 	return (void*)memrchr(buf, c, buflen);
 #else
+	
+	// TODO: this could use a variation of the trick used in DG_strnlen(), as described
+	//       on https://graphics.stanford.edu/~seander/bithacks.html#ValueInWord
+	
 	if(buflen > 0)
 	{
 		unsigned char* cur = (unsigned char*)buf + buflen - 1;
@@ -442,16 +446,6 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 #endif // __GLIBC__
 }
 
-#if !defined(__GLIBC__) || defined(DG_MISC_NO_GNU_SOURCE)
-static uintptr_t DG__hasZeroByte(uintptr_t word)
-{
-	// this assumes that if sizeof(uintptr_t) is 4 or 8
-	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
-	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
-
-	return (word - magic1) & ((~word) & magic2);
-}
-#endif // not __GLIBC__
 
 size_t DG_strnlen(const char* s, size_t n)
 {
@@ -471,6 +465,9 @@ size_t DG_strnlen(const char* s, size_t n)
 	// contain a '\0' or not. without branching, with relatively few instructions
 	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
 	assert((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8) && "DG_strnlen() only works for 32bit and 64bit systems!");
+	// these magic numbers are used for the trick:
+	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
+	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
 	
 	// let's get the empty buffer special case out of the way...
 	if(n==0) return 0;
@@ -503,7 +500,10 @@ size_t DG_strnlen(const char* s, size_t n)
 	
 	for( ; (const char*)s_aln <= s_last; ++s_aln)
 	{
-		if(DG__hasZeroByte(*s_aln))
+		uintptr_t m1 = *s_aln - magic1;
+		uintptr_t m2 = (~(*s_aln)) & magic2;
+		
+		if(m1 & m2)
 		{
 			cur = (const char*)s_aln;
 			size_t i;
