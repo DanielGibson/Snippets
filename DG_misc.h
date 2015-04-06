@@ -26,6 +26,9 @@
 #ifndef __DG_MISC_H__
 #define __DG_MISC_H__
 
+// for size_t:
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,7 +49,7 @@ const char* DG_GetExecutableDir(void);
 const char* DG_GetExecutableFilename(void);
 
 // copy up to n chars of str into a new string which is guaranteed to be
-// '\0'-terminated. 
+// '\0'-terminated.
 // Needs to be free'd with free(), returns NULL if allocation failed
 char* DG_strndup(const char* str, size_t n);
 
@@ -159,9 +162,7 @@ extern "C" {
 #include <assert.h>
 
 // for uintptr_t:
-#ifdef _MSC_VER
-#include <stddef.h>
-#else
+#ifndef _MSC_VER
 #include <stdint.h>
 #endif
 
@@ -192,16 +193,16 @@ extern "C" {
 static void DG__SetExecutablePath(char* exePath)
 {
 	// !!! this assumes that exePath can hold PATH_MAX chars !!!
-	
+
 #ifdef _WIN32
-	
+
 	DWORD len = GetModuleFileNameA(NULL, exePath, PATH_MAX);
 	if(len <= 0 || len == PATH_MAX)
 	{
 		// an error occured, clear exe path
 		exePath[0] = '\0';
 	}
-	
+
 #elif defined(__linux) || defined(__NetBSD__) || defined(__OpenBSD__)
 
 	// all the platforms that have /proc/$pid/exe or similar that symlink the
@@ -225,7 +226,8 @@ static void DG__SetExecutablePath(char* exePath)
 	// the sysctl should also work when /proc/ is not mounted (which seems to
 	// be common on FreeBSD), so use it..
 	int name[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
-	int ret = sysctl(name, sizeof(name)/sizeof(name[0]), exePath, PATH_MAX-1, NULL, 0);
+	size_t len = PATH_MAX-1;
+	int ret = sysctl(name, sizeof(name)/sizeof(name[0]), exePath, &len, NULL, 0);
 	if(ret != 0)
 	{
 		// an error occured, clear exe path
@@ -241,23 +243,23 @@ static void DG__SetExecutablePath(char* exePath)
 		// an error occured, clear exe path
 		exePath[0] = '\0';
 	}
-	
+
 	// TODO: realpath() ?
 	// TODO: no idea what this is if the executable is in an app bundle
-	
+
 #else
 
 #error "Unsupported Platform!" // feel free to add implementation for your platform and send me a patch
-	
+
 #endif
 }
 
 const char* DG_GetExecutablePath(void)
 {
 	static char exePath[PATH_MAX] = {0};
-	
+
 	if(exePath[0] != '\0') return exePath;
-	
+
 	// the following code should only be executed at the first call of this function
 	DG__SetExecutablePath(exePath);
 
@@ -267,25 +269,25 @@ const char* DG_GetExecutablePath(void)
 const char* DG_GetExecutableDir(void)
 {
 	static char exeDir[PATH_MAX] = {0};
-	
+
 	if(exeDir[0] != '\0') return exeDir;
-	
+
 	// the following code should only be executed at the first call of this function
 	const char* exePath = DG_GetExecutablePath();
-	
+
 	if(exePath == NULL || exePath[0] == '\0') return exeDir;
-	
+
 	DG_strlcpy(exeDir, exePath, PATH_MAX);
-	
+
 	// cut off executable name
 	char* lastSlash = strrchr(exeDir, '/');
 #ifdef _WIN32
 	char* lastBackSlash = strrchr(exeDir, '\\');
 	if(lastSlash == NULL || lastBackSlash > lastSlash) lastSlash = lastBackSlash;
 #endif // _WIN32
-	
+
 	if(lastSlash != NULL) lastSlash[1] = '\0'; // cut off after last (back)slash
-	
+
 	return exeDir;
 }
 
@@ -293,32 +295,32 @@ const char* DG_GetExecutableFilename(void)
 {
 	static const char* exeName = "";
 	if(exeName[0] != '\0') return exeName;
-	
+
 	// the following code should only be executed at the first call of this function
 	const char* exePath = DG_GetExecutablePath();
-	
+
 	if(exePath == NULL || exePath[0] == '\0') return exeName;
-	
+
 	// cut off executable name
 	const char* lastSlash = strrchr(exePath, '/');
 #ifdef _WIN32
 	const char* lastBackSlash = strrchr(exePath, '\\');
 	if(lastSlash == NULL || lastBackSlash > lastSlash) lastSlash = lastBackSlash;
 #endif // _WIN32
-	
+
 	if(lastSlash != NULL && lastSlash[1] != '\0')
 	{
 		// the filename starts after the last (back)slash
 		exeName = lastSlash+1;
 	}
-	
+
 	return exeName;
 }
 
 char* DG_strndup(const char* str, size_t n)
 {
 	assert(str != NULL && "Don't call DG_strndup() with NULL!");
-	
+
 	size_t len = DG_strnlen(str, n);
 	char* ret = (char*)malloc(len+1); // need one more byte for terminating 0
 	if(ret != NULL)
@@ -346,13 +348,13 @@ size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 {
 	assert(src && dst && "Don't call strlcpy with NULL arguments!");
 	size_t srclen = DG_strlen(src);
-	
+
 	if(dstsize != 0)
 	{
 		size_t numchars = dstsize-1;
-		
+
 		if(srclen < numchars) numchars = srclen;
-		
+
 		memcpy(dst, src, numchars);
 		dst[numchars] = '\0';
 	}
@@ -365,21 +367,21 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 
 	size_t dstlen = DG_strnlen(dst, dstsize);
 	size_t srclen = DG_strlen(src);
-	
+
 	assert(dstlen != dstsize && "dst must contain null-terminated data with strlen < dstsize!");
-	
+
 	// TODO: dst[dstsize-1] = '\0' to ensure null-termination and make wrong dstsize more obvious?
-	
+
 	if(dstsize > 1 && dstlen < dstsize-1)
 	{
 		size_t numchars = dstsize-dstlen-1;
-		
+
 		if(srclen < numchars) numchars = srclen;
-		
+
 		memcpy(dst+dstlen, src, numchars);
 		dst[dstlen+numchars] = '\0';
 	}
-	
+
 	return dstlen + srclen;
 }
 
@@ -388,42 +390,42 @@ void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, si
 	assert((haystack != NULL || haystacklen == 0)
 		&& (needle != NULL || needlelen == 0)
 		&& "Don't pass NULL into DG_memmem(), unless the corresponding len is 0!");
-	
+
 #if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
 	return memmem(haystack, haystacklen, needle, needlelen);
 #else
 	unsigned char* h = (unsigned char*)haystack;
 	unsigned char* n = (unsigned char*)needle;
-	
+
 	if(needlelen == 0) return (void*)haystack; // this is what glibc does..
 	if(haystacklen < needlelen) return NULL; // also handles haystacklen == 0
-	
+
 	if(needlelen == 1) return (void*)memchr(haystack, n[0], haystacklen);
-	
+
 	// TODO: knuth-morris-pratt or boyer-moore or something like that might be a lot faster.
-	
+
 	// the byte after the last byte needle could start at so it'd still fit into haystack
 	unsigned char* afterlast = h + haystacklen - needlelen + 1;
 	// haystack length up to afterlast
 	size_t hlen_for_needle_start = afterlast - h;
 	int n0 = n[0];
 	unsigned char* n0candidate = (unsigned char*) memchr(h, n0, hlen_for_needle_start);
-	
+
 	while(n0candidate != NULL)
 	{
 		if(memcmp(n0candidate+1, n+1, needlelen-1) == 0)
 		{
 			return (void*)n0candidate;
 		}
-		
+
 		++n0candidate; // go on searching one byte after the last n0candidate
 		hlen_for_needle_start = afterlast - n0candidate;
 		n0candidate = (unsigned char*)memchr(n0candidate, n0, hlen_for_needle_start);
 	}
 
 	return NULL; // not found
-	
+
 #endif // __GLIBC__
 }
 
@@ -435,10 +437,10 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 	// glibc has a very optimized version of this, use that instead
 	return (void*)memrchr(buf, c, buflen);
 #else
-	
+
 	// TODO: this could use a variation of the trick used in DG_strnlen(), as described
 	//       on https://graphics.stanford.edu/~seander/bithacks.html#ValueInWord
-	
+
 	if(buflen > 0)
 	{
 		unsigned char* cur = (unsigned char*)buf + buflen - 1;
@@ -446,10 +448,10 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 			if(*cur == c) return cur;
 			--cur;
 		} while(cur != buf);
-		
+
 		if(*cur == c) return cur;
 	}
-	
+
 	return NULL;
 #endif // __GLIBC__
 }
@@ -458,7 +460,7 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 size_t DG_strnlen(const char* s, size_t n)
 {
 	assert(s != NULL && "Don't call DG_strnlen() with NULL!");
-	
+
 #if (defined(__GLIBC__) || defined(__APPLE__)) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
 	// apple also seems to have optimized ASM code, see
@@ -467,7 +469,7 @@ size_t DG_strnlen(const char* s, size_t n)
 #else
 	// at least microsoft and freebsd seem to use a naive strnlen() without
 	// any tricks which is usually slower than this
-	
+
 	// uses a trick from https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
 	// (and probably in 1000 other places) to decide whether sizeof(uintptr_t) bytes
 	// contain a '\0' or not. without branching, with relatively few instructions
@@ -476,24 +478,27 @@ size_t DG_strnlen(const char* s, size_t n)
 	// these magic numbers are used for the trick:
 	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
 	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
-	
+
 	// let's get the empty buffer special case out of the way...
 	if(n==0) return 0;
-	
+
 	// s aligned to the next word boundary
 	uintptr_t s_alnI = ((uintptr_t)s + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t)-1);
 	const uintptr_t* s_aln = (uintptr_t *)s_alnI;
 	const char* s_last = (const char*)(~((uintptr_t)0)); // highest possible address (all bits are 1)
-	
-	if(n < s_last - s)
+
+	if(n < (uintptr_t)(s_last - s))
 	{
-		// adding n won't overflow, so it's safe to do that
+		// adding n won't overflow, so it's safe to do that now.
 		// otherwise s_last will remain to be the highest possible address
 		// Note: this is a bit cryptic, but according to http://lwn.net/Articles/278137/
 		// a check like "if(s+n-1 < s)" might be optimized away by many compilers
+		
+		// now it points to the last but one byte in s (if no byte up to and
+		// including this one is '\0', we'll return n)
 		s_last = s+n-1;
 	}
-	
+
 	// check bytes between s and s_aln
 	const char* cur = s;
 	for( ; cur != (const char*)s_aln; ++cur)
@@ -501,16 +506,16 @@ size_t DG_strnlen(const char* s, size_t n)
 		if(*cur == '\0')
 		{
 			if(cur > s_last) return n;
-			
+
 			return cur - s;
 		}
 	}
-	
+
 	for( ; (const char*)s_aln <= s_last; ++s_aln)
 	{
 		uintptr_t m1 = *s_aln - magic1;
 		uintptr_t m2 = (~(*s_aln)) & magic2;
-		
+
 		if(m1 & m2)
 		{
 			cur = (const char*)s_aln;
@@ -525,9 +530,9 @@ size_t DG_strnlen(const char* s, size_t n)
 			}
 		}
 	}
-	
+
 	return n;
-	
+
 #endif // __GLIBC__
 }
 
@@ -567,7 +572,7 @@ int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 {
 	assert(format && "Don't pass a NULL format into DG_vsnprintf()!");
 	assert(size >= 0 && "Don't pass a negative size to DG_vsnprintf()!");
-	
+
 	int ret = -1;
 	if(dst != NULL && size > 0)
 	{
@@ -580,7 +585,7 @@ int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 		dst[size-1] = '\0'; // ensure '\0'-termination
 #endif
 	}
-	
+
 	if(ret == -1)
 	{
 		// _vsnprintf() returns -1 if the output is truncated
@@ -589,7 +594,7 @@ int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 		// needed, though.. fortunately _vscprintf() calculates that.
 		ret = _vscprintf(format, ap);
 	}
-	
+
 	return ret;
 }
 
@@ -597,16 +602,16 @@ int DG_snprintf(char *dst, int size, const char *format, ...)
 {
 	assert(format && "Don't pass a NULL format into DG_snprintf()!");
 	assert(size >= 0 && "Don't pass a negative size to DG_snprintf()!");
-	
+
 	int ret = 0;
-	
+
 	va_list argptr;
 	va_start( argptr, format );
-	
+
 	ret = DG_vsnprintf(dst, size, format, argptr);
-	
+
 	va_end( argptr );
-	
+
 	return ret;
 }
 #endif // _WIN32
