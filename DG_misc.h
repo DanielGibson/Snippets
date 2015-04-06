@@ -1,7 +1,8 @@
 /*
  * Misc. useful public domain functions.
- * Assumes a C99 compatible Compiler or MSVC (2005 and newer should work).
- * 
+ * Assumes a C99 compatible Compiler or MSVC (only tested 2013, but I think
+ * I didn't use anything fancy)
+ *
  * Copyright (C) 2015 Daniel Gibson
  *
  * Do:
@@ -57,8 +58,8 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 
 // See also https://www.freebsd.org/cgi/man.cgi?query=strlcpy&sektion=3
 // for details on strlcpy and strlcat.
-// My implementations use strlen(), strnlen() and memcpy() from the C std lib,
-// which are usually heavily optimized. Thus they're faster than the BSD strl*
+// My implementations use (DG_)strlen(), (DG_)strnlen() and memcpy(), which are
+// usually heavily optimized. Thus they're faster than the BSD strl*
 // implementations in most cases (those iterate the strings bytewise themselves)
 // (unless the function call overhead is higher than iterating the bytes,
 //  which only happens for very short strings and is negligible.
@@ -86,15 +87,15 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 // I didn't bother to use a #define because strnlen() (in contrast to strlen())
 // is no compiler-builtin (at least for GCC) anyway.
 
-// returns the lengths of the '\0'-terminated string s in bytes
-// if there is '\0' in the first n bytes, returns n
+// returns the length of the '\0'-terminated string s in chars
+// if there is no '\0' in the first n chars, returns n
 size_t DG_strnlen(const char* s, size_t n);
 
 #ifndef _WIN32
 // other libc implementations have a fast strlen... use a #define so compilers
 // recognizes strlen and can optimize/use a builtin
 
-// returns the lengths of the '\0'-terminated string s in bytes
+// returns the length of the '\0'-terminated string s in chars
 #define DG_strlen strlen
 
 // other libc implementors than Microsoft implemented (v)snprintf() properly.
@@ -103,7 +104,7 @@ size_t DG_strnlen(const char* s, size_t n);
 
 #else // it *is* _WIN32, DG_strlen(), DG_snprintf() and DG_vsnprintf(), implemented as functions on win32
 
-// returns the lengths of the '\0'-terminated string s in bytes
+// returns the length of the '\0'-terminated string s in chars
 size_t DG_strlen(const char* s);
 
 // a snprintf() implementation that is conformant to C99 by ensuring
@@ -322,9 +323,8 @@ const char* DG_GetExecutableFilename(void)
 char* DG_strndup(const char* str, size_t n)
 {
 	assert(str != NULL && "Don't call DG_strndup() with NULL!");
-	// strnlen() is not a standard C function, but even MSVC supports it (at least) since MSVC2005
-	// if that turns out to be a problem report that and I might provide a DG_strnlen()
-	size_t len = strnlen(str, n);
+	
+	size_t len = DG_strnlen(str, n);
 	char* ret = (char*)malloc(len+1); // need one more byte for terminating 0
 	if(ret != NULL)
 	{
@@ -337,7 +337,7 @@ char* DG_strndup(const char* str, size_t n)
 size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 {
 	assert(src && dst && "Don't call strlcpy with NULL arguments!");
-	size_t srclen = strlen(src);
+	size_t srclen = DG_strlen(src);
 	
 	if(dstsize != 0)
 	{
@@ -354,9 +354,9 @@ size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 {
 	assert(src && dst && "Don't call strlcat with NULL arguments!");
-	// strnlen() is not a standard C function, but even MSVC supports it (at least) since MSVC2005
-	size_t dstlen = strnlen(dst, dstsize);
-	size_t srclen = strlen(src);
+
+	size_t dstlen = DG_strnlen(dst, dstsize);
+	size_t srclen = DG_strlen(src);
 	
 	assert(dstlen != dstsize && "dst must contain null-terminated data with strlen < dstsize!");
 	
@@ -523,14 +523,12 @@ size_t DG_strnlen(const char* s, size_t n)
 #endif // __GLIBC__
 }
 
-
-
 #ifdef _WIN32
 size_t DG_strlen(const char* s)
 {
-	// glibc's strlen() is *fucking* fast (with custom ASM), freebsd uses the
-	// same trick as DG_strnlen() and is slightly faster, Apple has custom ASM
-	// but microsoft's strlen is slower than DG_strnlen(), so use that for windows.
+	// glibc's strlen() is *fucking* fast (with custom ASM), Apple also has custom ASM,
+	// freebsd uses the same trick as DG_strnlen() and is slightly faster...
+	// but Microsoft's strlen() is slower than DG_strnlen(), so use that for Windows.
 	// I don't feel like duplicating all that strnlen() code, so let's just pass
 	// the max. possible length (until the highest address a pointer can store)
 	static const char* maxaddr = (const char*)(~((uintptr_t)0));
