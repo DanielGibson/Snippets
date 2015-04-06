@@ -524,6 +524,26 @@ size_t DG_strnlen(const char* s, size_t n)
 }
 
 #ifdef _WIN32
+/* value of _MSC_VER macro for different MSVC versions,
+ * so I don't have to google that over and over again
+ * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c)
+ * Visual C++   _MSC_VER
+ * 12.0 (2013)   1800
+ * 11.0 (2012)   1700
+ * 10.0 (2010)   1600
+ * 9.0  (2008)   1500
+ * 8.0  (2005)   1400
+ * 7.1  (2003)   1310
+ * 7.0           1300
+ * 6.0           1200
+ * 5.0           1100
+ * 4.2           1020
+ * 4.0           1000
+ * 3.0           900
+ * 1.0           800
+ */
+
+
 size_t DG_strlen(const char* s)
 {
 	// glibc's strlen() is *fucking* fast (with custom ASM), Apple also has custom ASM,
@@ -543,8 +563,14 @@ int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 	int ret = -1;
 	if(dst != NULL && size > 0)
 	{
+#if defined(_MSC_VER) && _MSC_VER >= 1400
+		// I think MSVC2005 introduced _vsnprintf_s().
+		// this shuts up _vsnprintf() security/deprecation warnings.
+		ret = _vsnprintf_s(dst, size, _TRUNCATE, format, ap);
+#else
 		ret = _vsnprintf(dst, size, format, ap);
 		dst[size-1] = '\0'; // ensure '\0'-termination
+#endif
 	}
 	
 	if(ret == -1)
