@@ -16,6 +16,11 @@
  *  recognized, you are granted a perpetual, irrevocable license to copy
  *  and modify this file however you want.
  *  No warranty implied; use at your own risk.
+ *
+ * So you can do whatever you want with this code, including copying it
+ * (or parts of it) into your own source.
+ * No need to mention me or this "license" in your code or docs, even though
+ * it would be appreciated, of course.
  */
 
 #ifndef __DG_MISC_H__
@@ -181,6 +186,7 @@ extern "C" {
 // longer paths anyway.. this might not be the maximum allowed length, but is
 // hopefully good enough for realistic usecases
 #define PATH_MAX 4096
+#define _DG__DEFINED_PATH_MAX
 #endif
 
 static void DG__SetExecutablePath(char* exePath)
@@ -611,6 +617,11 @@ int DG_snprintf(char *dst, int size, const char *format, ...)
 #undef _GNU_SOURCE
 #undef _DG__DEFINED_GNU_SOURCE
 #endif // _DG__DEFINED_GNU_SOURCE
+
+#ifdef _DG__DEFINED_PATH_MAX
+#undef PATH_MAX
+#undef _DG__DEFINED_PATH_MAX
+#endif // _DG__DEFINED_PATH_MAX
 
 #ifdef __cplusplus
 } // extern "C"
