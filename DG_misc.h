@@ -1,6 +1,6 @@
 /*
  * Misc. useful public domain functions.
- * Assumes a C99 compatible Compiler or MSVC.
+ * Assumes a C99 compatible Compiler or MSVC (2005 and newer should work).
  * 
  * Copyright (C) 2015 Daniel Gibson
  *
@@ -80,13 +80,31 @@ void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, si
 // returns NULL if c wasn't found in buf.
 void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
+// on many platforms (incl. windows and freebsd) this implementation is faster
+// than the libc's strnlen(). on others (linux/glibc, OSX) it just calls the
+// ASM-optimized strnlen() provided by the libc.
+// I didn't bother to use a #define because strnlen() (in contrast to strlen())
+// is no compiler-builtin (at least for GCC) anyway.
+
+// returns the lengths of the '\0'-terminated string s in bytes
+// if there is '\0' in the first n bytes, returns n
+size_t DG_strnlen(const char* s, size_t n);
+
 #ifndef _WIN32
+// other libc implementations have a fast strlen... use a #define so compilers
+// recognizes strlen and can optimize/use a builtin
+
+// returns the lengths of the '\0'-terminated string s in bytes
+#define DG_strlen strlen
 
 // other libc implementors than Microsoft implemented (v)snprintf() properly.
 #define DG_snprintf snprintf
 #define DG_vsnprintf vsnprintf
 
-#else // it *is* _WIN32, DG_snprintf() and DG_vsnprintf(), implemented as functions on win32
+#else // it *is* _WIN32, DG_strlen(), DG_snprintf() and DG_vsnprintf(), implemented as functions on win32
+
+// returns the lengths of the '\0'-terminated string s in bytes
+size_t DG_strlen(const char* s);
 
 // a snprintf() implementation that is conformant to C99 by ensuring
 // '\0'-termination of dst and returning the number of chars (without
@@ -144,6 +162,13 @@ extern "C" {
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
+
+// for uintptr_t:
+#ifdef _MSC_VER
+#include <stddef.h>
+#else
+#include <stdint.h>
+#endif
 
 #if defined(__linux) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #include <unistd.h> // readlink(), amongst others
@@ -417,7 +442,101 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 #endif // __GLIBC__
 }
 
+#if !defined(__GLIBC__) || defined(DG_MISC_NO_GNU_SOURCE)
+static uintptr_t DG__hasZeroByte(uintptr_t word)
+{
+	// this assumes that if sizeof(uintptr_t) is 4 or 8
+	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
+	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
+
+	return (word - magic1) & ((~word) & magic2);
+}
+#endif // not __GLIBC__
+
+size_t DG_strnlen(const char* s, size_t n)
+{
+	assert(s != NULL && "Don't call DG_strnlen() with NULL!");
+	
+#if (defined(__GLIBC__) || defined(__APPLE__)) && !defined(DG_MISC_NO_GNU_SOURCE)
+	// glibc has a very optimized version of this, use that instead
+	// apple also seems to have optimized ASM code, see
+	// http://www.opensource.apple.com/source/Libc/Libc-1044.1.2/x86_64/string/
+	return strnlen(s, n);
+#else
+	// at least microsoft and freebsd seem to use a naive strnlen() without
+	// any tricks which is usually slower than this
+	
+	// uses a trick from https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+	// (and probably in 1000 other places) to decide whether sizeof(uintptr_t) bytes
+	// contain a '\0' or not. without branching, with relatively few instructions
+	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
+	assert((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8) && "DG_strnlen() only works for 32bit and 64bit systems!");
+	
+	// let's get the empty buffer special case out of the way...
+	if(n==0) return 0;
+	
+	// s aligned to the next word boundary
+	uintptr_t s_alnI = ((uintptr_t)s + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t)-1);
+	const uintptr_t* s_aln = (uintptr_t *)s_alnI;
+	const char* s_last = (const char*)(~((uintptr_t)0)); // highest possible address (all bits are 1)
+	
+	if(n < s_last - s)
+	{
+		// adding n won't overflow, so it's safe to do that
+		// otherwise s_last will remain to be the highest possible address
+		// Note: this is a bit cryptic, but according to http://lwn.net/Articles/278137/
+		// a check like "if(s+n-1 < s)" might be optimized away by many compilers
+		s_last = s+n-1;
+	}
+	
+	// check bytes between s and s_aln
+	const char* cur = s;
+	for( ; cur != (const char*)s_aln; ++cur)
+	{
+		if(*cur == '\0')
+		{
+			if(cur > s_last) return n;
+			
+			return cur - s;
+		}
+	}
+	
+	for( ; (const char*)s_aln <= s_last; ++s_aln)
+	{
+		if(DG__hasZeroByte(*s_aln))
+		{
+			cur = (const char*)s_aln;
+			size_t i;
+			for(i=0; i<sizeof(uintptr_t); ++i)
+			{
+				if(cur[i] == '\0')
+				{
+					size_t ret = cur + i - s;
+					return (ret < n) ? ret : n;
+				}
+			}
+		}
+	}
+	
+	return n;
+	
+#endif // __GLIBC__
+}
+
+
+
 #ifdef _WIN32
+size_t DG_strlen(const char* s)
+{
+	// glibc's strlen() is *fucking* fast (with custom ASM), freebsd uses the
+	// same trick as DG_strnlen() and is slightly faster, Apple has custom ASM
+	// but microsoft's strlen is slower than DG_strnlen(), so use that for windows.
+	// I don't feel like duplicating all that strnlen() code, so let's just pass
+	// the max. possible length (until the highest address a pointer can store)
+	static const char* maxaddr = (const char*)(~((uintptr_t)0));
+	return DG_strnlen(s, maxaddr - s);
+}
+
 int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 {
 	assert(format && "Don't pass a NULL format into DG_vsnprintf()!");
