@@ -1,11 +1,11 @@
 # Snippets
 
-Some standalone source files that don't need separate repositories.
+Some standalone source files that don't deserve their own repositories.
 
 | File                          | Description    |
 |-------------------------------|----------------|
 | **DG_misc.h**                 | A public domain single-header C library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms  |
-| **sdl2_scancode_to_dinput.h** | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain.                                                                        |
+| **sdl2_scancode_to_dinput.h** | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
 | **ImgToC.c**                  | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
 
 ## List of functions in **DG_misc.h**
