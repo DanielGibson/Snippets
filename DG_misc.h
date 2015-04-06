@@ -108,16 +108,16 @@ size_t DG_strlen(const char* s);
 // '\0'-termination of dst and returning the number of chars (without
 // terminating '\0') that would've been written to a big enough buffer
 // However, it still might do microsoft-specific printf formatting
-//   int DG_snprintf(char *dst, int size, const char *format, ...);
+//   int DG_snprintf(char *dst, size_t size, const char *format, ...);
 
 // several different cases to do printf format checking with different compilers for DG_snprintf()
 #if defined(_MSC_VER) && _MSC_VER >= 1400 // MSVC2005 and newer have an annotation. only used in /analyze builds.
 	#include <CodeAnalysis\SourceAnnotations.h>
-	int DG_snprintf(char *dst, int size, [SA_FormatString(Style="printf")] const char *format, ...);
+	int DG_snprintf(char *dst, size_t size, [SA_FormatString(Style="printf")] const char *format, ...);
 #elif defined(__GNUC__) // mingw or similar, checking with GCC attribute
-	int DG_snprintf(char *dst, int size, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+	int DG_snprintf(char *dst, size_t size, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
 #else // some other compiler, no printf format checking
-	int DG_snprintf(char *dst, int size, const char *format, ...);
+	int DG_snprintf(char *dst, size_t size, const char *format, ...);
 #endif // _MSC_VER or __GNUC__
 
 #ifdef va_start // it's a macro and defined if the user #included stdarg.h
@@ -126,7 +126,7 @@ size_t DG_strlen(const char* s);
 // '\0'-termination of dst and returning the number of chars (without
 // terminating '\0') that would've been written to a big enough buffer
 // However, it still might do microsoft-specific printf formatting
-int DG_vsnprintf(char *dst, int size, const char *format, va_list ap);
+int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 
 #endif // va_start
 
@@ -160,6 +160,7 @@ extern "C" {
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
+#include <limits.h> // INT_MAX, maybe PATH_MAX
 
 // for uintptr_t:
 #ifndef _MSC_VER
@@ -568,10 +569,11 @@ size_t DG_strlen(const char* s)
 	return DG_strnlen(s, maxaddr - s);
 }
 
-int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
+int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 {
 	assert(format && "Don't pass a NULL format into DG_vsnprintf()!");
-	assert(size >= 0 && "Don't pass a negative size to DG_vsnprintf()!");
+	// TODO: assert(size <= INT_MAX && "Don't pass a size > INT_MAX to DG_vsnprintf()!"); ??
+	//       after all, we're supposed to return the number of bytes written.. as an int.
 
 	int ret = -1;
 	if(dst != NULL && size > 0)
@@ -598,10 +600,9 @@ int DG_vsnprintf(char *dst, int size, const char *format, va_list ap)
 	return ret;
 }
 
-int DG_snprintf(char *dst, int size, const char *format, ...)
+int DG_snprintf(char *dst, size_t size, const char *format, ...)
 {
 	assert(format && "Don't pass a NULL format into DG_snprintf()!");
-	assert(size >= 0 && "Don't pass a negative size to DG_snprintf()!");
 
 	int ret = 0;
 
