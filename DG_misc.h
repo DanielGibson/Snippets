@@ -1,7 +1,6 @@
 /*
  * Misc. useful public domain functions.
- * Assumes a C99 compatible Compiler or MSVC (only tested 2013, but I think
- * I didn't use anything fancy)
+ * Assumes a C99 compatible Compiler (gcc and clang tested) or MS Visual C++
  *
  * Copyright (C) 2015 Daniel Gibson
  *
@@ -10,6 +9,16 @@
  * before you include this file in *one* of your .c/.cpp files.
  * Ideally, this is the first thing you #include in that .c/.cpp file.
  * Or second: #include <stdarg.h> before this to get DG_vsnprintf()
+ *
+ * Supported Microsoft Visual C++ Versions:
+ *  Tested MSVC 2013 and 2010 (it just works for them), and MSVC 6.0, which works
+ *  with little changes: you need to "typedef unsigned int uintptr_t;" before
+ *  #including this file (because back then they didn't have uintptr_t) and you
+ *  need to comment out the call to _vscprintf() in DG_vsnprintf(), because that
+ *  function wasn't supported either. In that case, DG_(v)snprintf() will
+ *  return -1 (instead of the needed buffer length), if the buffer was too small.
+ *  Might be similar for other MSVC versions between 6 and 2010, I didn't test.
+ *  I'm not gonna test MSVC6 regularly, maybe just use a newer compiler :-P
  *
  * License:
  *  This software is in the public domain. Where that dedication is not
@@ -176,7 +185,7 @@ extern "C" {
 #endif
 
 #ifdef _WIN32
-#include <Winbase.h> // GetModuleFileNameA()
+#include <windows.h> // GetModuleFileNameA()
 #endif
 
 #ifdef __APPLE__
@@ -477,8 +486,15 @@ size_t DG_strnlen(const char* s, size_t n)
 	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
 	assert((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8) && "DG_strnlen() only works for 32bit and 64bit systems!");
 	// these magic numbers are used for the trick:
+#if defined(_MSC_VER) && !defined(_WIN64)
+	// some older MSVC versions (tested 6.0) don't support ULL suffixes.. not sure
+	// when they started supporting them, but for non-64bit windows these constants works
+	static const uintptr_t magic1 = 0x01010101uL;
+	static const uintptr_t magic2 = 0x80808080uL;
+#else // better compilers/64bit win
 	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
 	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
+#endif
 
 	// let's get the empty buffer special case out of the way...
 	if(n==0) return 0;
@@ -595,6 +611,13 @@ int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 		// we want to return the number of characters that would've been
 		// needed, though.. fortunately _vscprintf() calculates that.
 		ret = _vscprintf(format, ap);
+
+		// NOTE: on ancient MSVC versions you may get an error because
+		//  _vscprintf() is not supported.. I don't know when it started being
+		//  supported and I don't want to silently make this function incorrect
+		//  anyway.. feel free to comment out that line yourself, -1 will be
+		//  returned in case of a too short buffer then.
+		//  At least it'll still be '\0'-terminated.
 	}
 
 	return ret;
