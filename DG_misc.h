@@ -14,6 +14,10 @@
  * to your own liking to overwrite (or deactivate) them, if you don't,
  * the default is #define DG_MISC_ASSERT assert( (condition) && (message) )
  *
+ * You can #define DG_MISC_DEF if you want to prepend anything to the
+ * function signatures (like "static", "inline", "__declspec(dllexport)", ...)
+ * Example: #define DG_MISC_DEF static inline
+ *
  * Supported Microsoft Visual C++ Versions:
  *  Tested MSVC 2013 and 2010 (it just works for them), and MSVC 6.0, which works
  *  with little changes: you need to "typedef unsigned int uintptr_t;" before
@@ -39,6 +43,12 @@
 #ifndef __DG_MISC_H__
 #define __DG_MISC_H__
 
+// this allows you to prepend stuff to function signatures, e.g. "static"
+#ifndef DG_MISC_DEF
+// by default it's empty
+#define DG_MISC_DEF
+#endif // DG_MISC_DEF
+
 // for size_t:
 #include <stddef.h>
 
@@ -48,34 +58,34 @@ extern "C" {
 
 // returns the full path to your executable, including the executable itself
 // returns empty string on error
-const char* DG_GetExecutablePath(void);
+DG_MISC_DEF const char* DG_GetExecutablePath(void);
 
 // returns the full path to the directory your executable is in,
 // incl. (back)slash, but without the executable itself
 // returns empty string on error
-const char* DG_GetExecutableDir(void);
+DG_MISC_DEF const char* DG_GetExecutableDir(void);
 
 // returns the filename of the executable, without the path
 // basically, DG_GetExecutableDir() concatenated with DG_GetExecutableFilename()
 //   is DG_GetExecutablePath()
 // returns empty string on error
-const char* DG_GetExecutableFilename(void);
+DG_MISC_DEF const char* DG_GetExecutableFilename(void);
 
 // copy up to n chars of str into a new string which is guaranteed to be
 // '\0'-terminated.
 // Needs to be free'd with free(), returns NULL if allocation failed
-char* DG_strndup(const char* str, size_t n);
+DG_MISC_DEF char* DG_strndup(const char* str, size_t n);
 
 // copies up to dstsize-1 bytes from src to dst and ensures '\0' termination
 // returns the number of chars that would be written into a big enough dst
 // buffer without the terminating '\0'
-size_t DG_strlcpy(char* dst, const char* src, size_t dstsize);
+DG_MISC_DEF size_t DG_strlcpy(char* dst, const char* src, size_t dstsize);
 
 // appends src to the existing null-terminated(!) string in dst while making
 // sure that dst will not contain more than dstsize bytes incl. terminating '\0'
 // returns the number of chars that would be written into a big enough dst
 // buffer without the terminating '\0'
-size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
+DG_MISC_DEF size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 
 // See also https://www.freebsd.org/cgi/man.cgi?query=strlcpy&sektion=3
 // for details on strlcpy and strlcat.
@@ -84,12 +94,13 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 // haystack and needle are buffers with given lengths in byte and will be
 // interpreted as unsigned char* for comparison. the comparison used is like memcmp()
 // returns the address of the first match, or NULL if it wasn't found
-void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, size_t needlelen);
+DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
+                            const void* needle, size_t needlelen);
 
 // returns the last occurence byte c in buf (searching backwards from buf[buflen-1] on)
 // like strrchr(), but for binary data, or like memchr() but backwards.
 // returns NULL if c wasn't found in buf.
-void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
+DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
 // on many platforms (incl. windows and freebsd) this implementation is faster
 // than the libc's strnlen(). on others (linux/glibc, OSX) it just calls the
@@ -99,7 +110,7 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
 // returns the length of the '\0'-terminated string s in chars
 // if there is no '\0' in the first n chars, returns n
-size_t DG_strnlen(const char* s, size_t n);
+DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n);
 
 #ifndef _WIN32
 // other libc implementations have a fast strlen... use a #define so compilers
@@ -115,7 +126,7 @@ size_t DG_strnlen(const char* s, size_t n);
 #else // it *is* _WIN32, DG_strlen(), DG_snprintf() and DG_vsnprintf(), implemented as functions on win32
 
 // returns the length of the '\0'-terminated string s in chars
-size_t DG_strlen(const char* s);
+DG_MISC_DEF size_t DG_strlen(const char* s);
 
 // a snprintf() implementation that is conformant to C99 by ensuring
 // '\0'-termination of dst and returning the number of chars (without
@@ -126,11 +137,13 @@ size_t DG_strlen(const char* s);
 // several different cases to do printf format checking with different compilers for DG_snprintf()
 #if defined(_MSC_VER) && _MSC_VER >= 1400 // MSVC2005 and newer have an annotation. only used in /analyze builds.
 	#include <CodeAnalysis\SourceAnnotations.h>
-	int DG_snprintf(char *dst, size_t size, [SA_FormatString(Style="printf")] const char *format, ...);
+	DG_MISC_DEF int DG_snprintf(char *dst, size_t size,
+	             [SA_FormatString(Style="printf")] const char *format, ...);
 #elif defined(__GNUC__) // mingw or similar, checking with GCC attribute
-	int DG_snprintf(char *dst, size_t size, const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+	DG_MISC_DEF int DG_snprintf(char *dst, size_t size,
+	             const char *format, ...) __attribute__ ((format (printf, 3, 4)));
 #else // some other compiler, no printf format checking
-	int DG_snprintf(char *dst, size_t size, const char *format, ...);
+	DG_MISC_DEF int DG_snprintf(char *dst, size_t size, const char *format, ...);
 #endif // _MSC_VER or __GNUC__
 
 #ifdef va_start // it's a macro and defined if the user #included stdarg.h
@@ -139,7 +152,7 @@ size_t DG_strlen(const char* s);
 // '\0'-termination of dst and returning the number of chars (without
 // terminating '\0') that would've been written to a big enough buffer
 // However, it still might do microsoft-specific printf formatting
-int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
+DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 
 #endif // va_start
 
@@ -272,7 +285,7 @@ static void DG__SetExecutablePath(char* exePath)
 #endif
 }
 
-const char* DG_GetExecutablePath(void)
+DG_MISC_DEF const char* DG_GetExecutablePath(void)
 {
 	static char exePath[PATH_MAX] = {0};
 
@@ -284,7 +297,7 @@ const char* DG_GetExecutablePath(void)
 	return exePath;
 }
 
-const char* DG_GetExecutableDir(void)
+DG_MISC_DEF const char* DG_GetExecutableDir(void)
 {
 	static char exeDir[PATH_MAX] = {0};
 
@@ -309,7 +322,7 @@ const char* DG_GetExecutableDir(void)
 	return exeDir;
 }
 
-const char* DG_GetExecutableFilename(void)
+DG_MISC_DEF const char* DG_GetExecutableFilename(void)
 {
 	static const char* exeName = "";
 	if(exeName[0] != '\0') return exeName;
@@ -335,7 +348,7 @@ const char* DG_GetExecutableFilename(void)
 	return exeName;
 }
 
-char* DG_strndup(const char* str, size_t n)
+DG_MISC_DEF char* DG_strndup(const char* str, size_t n)
 {
 	DG_MISC_ASSERT(str != NULL, "Don't call DG_strndup() with NULL!");
 
@@ -362,7 +375,7 @@ char* DG_strndup(const char* str, size_t n)
 //  part of the buffer with '\0', but doesn't guarantee '\0'-termination if the
 //  buffer isn't big enough.. and thus is pretty useless.
 
-size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
+DG_MISC_DEF size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 {
 	DG_MISC_ASSERT(src && dst, "Don't call strlcpy with NULL arguments!");
 	size_t srclen = DG_strlen(src);
@@ -379,7 +392,7 @@ size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 	return srclen;
 }
 
-size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
+DG_MISC_DEF size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 {
 	DG_MISC_ASSERT(src && dst, "Don't call strlcat with NULL arguments!");
 
@@ -403,7 +416,8 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 	return dstlen + srclen;
 }
 
-void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, size_t needlelen)
+DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
+                            const void* needle, size_t needlelen)
 {
 	DG_MISC_ASSERT((haystack != NULL || haystacklen == 0)
 			&& (needle != NULL || needlelen == 0),
@@ -448,7 +462,7 @@ void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, si
 }
 
 
-void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
+DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 {
 	DG_MISC_ASSERT(buf != NULL, "Don't pass NULL into DG_memrchr()!");
 #if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
@@ -475,7 +489,7 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 }
 
 
-size_t DG_strnlen(const char* s, size_t n)
+DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 {
 	DG_MISC_ASSERT(s != NULL, "Don't call DG_strnlen() with NULL!");
 
@@ -583,7 +597,7 @@ size_t DG_strnlen(const char* s, size_t n)
  */
 
 
-size_t DG_strlen(const char* s)
+DG_MISC_DEF size_t DG_strlen(const char* s)
 {
 	// glibc's strlen() is *fucking* fast (with custom ASM), Apple also has custom ASM,
 	// freebsd uses the same trick as DG_strnlen() and is slightly faster...
@@ -594,7 +608,7 @@ size_t DG_strlen(const char* s)
 	return DG_strnlen(s, maxaddr - s);
 }
 
-int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
+DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 {
 	DG_MISC_ASSERT(format, "Don't pass a NULL format into DG_vsnprintf()!");
 	// TODO: assert(size <= INT_MAX && "Don't pass a size > INT_MAX to DG_vsnprintf()!"); ??
@@ -632,7 +646,7 @@ int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 	return ret;
 }
 
-int DG_snprintf(char *dst, size_t size, const char *format, ...)
+DG_MISC_DEF int DG_snprintf(char *dst, size_t size, const char *format, ...)
 {
 	DG_MISC_ASSERT(format, "Don't pass a NULL format into DG_snprintf()!");
 
