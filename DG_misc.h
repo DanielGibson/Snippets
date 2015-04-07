@@ -10,6 +10,10 @@
  * Ideally, this is the first thing you #include in that .c/.cpp file.
  * Or second: #include <stdarg.h> before this to get DG_vsnprintf()
  *
+ * The code uses assertions. You can #define DG_MISC_ASSERT(condition, message)
+ * to your own liking to overwrite (or deactivate) them, if you don't,
+ * the default is #define DG_MISC_ASSERT assert( (condition) && (message) )
+ *
  * Supported Microsoft Visual C++ Versions:
  *  Tested MSVC 2013 and 2010 (it just works for them), and MSVC 6.0, which works
  *  with little changes: you need to "typedef unsigned int uintptr_t;" before
@@ -156,6 +160,11 @@ int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 extern "C" {
 #endif
 
+#ifndef DG_MISC_ASSERT
+#define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
+#include <assert.h>
+#endif
+
 // DG_MISC_NO_GNU_SOURCE can be used to enforce usage of our own memrchr() and memmem() functions
 // on Linux - mostly relevant for testing (they should be faster than my implementation)
 #if !defined(_GNU_SOURCE) && !defined(DG_MISC_NO_GNU_SOURCE)
@@ -168,7 +177,6 @@ extern "C" {
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <assert.h>
 #include <limits.h> // INT_MAX, maybe PATH_MAX
 
 // for uintptr_t:
@@ -329,7 +337,7 @@ const char* DG_GetExecutableFilename(void)
 
 char* DG_strndup(const char* str, size_t n)
 {
-	assert(str != NULL && "Don't call DG_strndup() with NULL!");
+	DG_MISC_ASSERT(str != NULL, "Don't call DG_strndup() with NULL!");
 
 	size_t len = DG_strnlen(str, n);
 	char* ret = (char*)malloc(len+1); // need one more byte for terminating 0
@@ -356,7 +364,7 @@ char* DG_strndup(const char* str, size_t n)
 
 size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 {
-	assert(src && dst && "Don't call strlcpy with NULL arguments!");
+	DG_MISC_ASSERT(src && dst, "Don't call strlcpy with NULL arguments!");
 	size_t srclen = DG_strlen(src);
 
 	if(dstsize != 0)
@@ -373,12 +381,12 @@ size_t DG_strlcpy(char* dst, const char* src, size_t dstsize)
 
 size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 {
-	assert(src && dst && "Don't call strlcat with NULL arguments!");
+	DG_MISC_ASSERT(src && dst, "Don't call strlcat with NULL arguments!");
 
 	size_t dstlen = DG_strnlen(dst, dstsize);
 	size_t srclen = DG_strlen(src);
 
-	assert(dstlen != dstsize && "dst must contain null-terminated data with strlen < dstsize!");
+	DG_MISC_ASSERT(dstlen != dstsize, "dst must contain null-terminated data with strlen < dstsize!");
 
 	// TODO: dst[dstsize-1] = '\0' to ensure null-termination and make wrong dstsize more obvious?
 
@@ -397,9 +405,9 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize)
 
 void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, size_t needlelen)
 {
-	assert((haystack != NULL || haystacklen == 0)
-		&& (needle != NULL || needlelen == 0)
-		&& "Don't pass NULL into DG_memmem(), unless the corresponding len is 0!");
+	DG_MISC_ASSERT((haystack != NULL || haystacklen == 0)
+			&& (needle != NULL || needlelen == 0),
+			"Don't pass NULL into DG_memmem(), unless the corresponding len is 0!");
 
 #if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
@@ -442,7 +450,7 @@ void* DG_memmem(const void* haystack, size_t haystacklen, const void* needle, si
 
 void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 {
-	assert(buf != NULL && "Don't pass NULL into DG_memrchr()!");
+	DG_MISC_ASSERT(buf != NULL, "Don't pass NULL into DG_memrchr()!");
 #if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
 	return (void*)memrchr(buf, c, buflen);
@@ -469,7 +477,7 @@ void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 
 size_t DG_strnlen(const char* s, size_t n)
 {
-	assert(s != NULL && "Don't call DG_strnlen() with NULL!");
+	DG_MISC_ASSERT(s != NULL, "Don't call DG_strnlen() with NULL!");
 
 #if (defined(__GLIBC__) || defined(__APPLE__)) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
@@ -484,7 +492,7 @@ size_t DG_strnlen(const char* s, size_t n)
 	// (and probably in 1000 other places) to decide whether sizeof(uintptr_t) bytes
 	// contain a '\0' or not. without branching, with relatively few instructions
 	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
-	assert((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8) && "DG_strnlen() only works for 32bit and 64bit systems!");
+	DG_MISC_ASSERT((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8), "DG_strnlen() only works for 32bit and 64bit systems!");
 	// these magic numbers are used for the trick:
 #if defined(_MSC_VER) && !defined(_WIN64)
 	// some older MSVC versions (tested 6.0) don't support ULL suffixes.. not sure
@@ -530,6 +538,7 @@ size_t DG_strnlen(const char* s, size_t n)
 
 	for( ; (const char*)s_aln <= s_last; ++s_aln)
 	{
+		// the aforementioned trick
 		uintptr_t m1 = *s_aln - magic1;
 		uintptr_t m2 = (~(*s_aln)) & magic2;
 
@@ -587,7 +596,7 @@ size_t DG_strlen(const char* s)
 
 int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 {
-	assert(format && "Don't pass a NULL format into DG_vsnprintf()!");
+	DG_MISC_ASSERT(format, "Don't pass a NULL format into DG_vsnprintf()!");
 	// TODO: assert(size <= INT_MAX && "Don't pass a size > INT_MAX to DG_vsnprintf()!"); ??
 	//       after all, we're supposed to return the number of bytes written.. as an int.
 
@@ -625,7 +634,7 @@ int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 
 int DG_snprintf(char *dst, size_t size, const char *format, ...)
 {
-	assert(format && "Don't pass a NULL format into DG_snprintf()!");
+	DG_MISC_ASSERT(format, "Don't pass a NULL format into DG_snprintf()!");
 
 	int ret = 0;
 
