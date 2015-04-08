@@ -45,6 +45,9 @@ void* DG_memmem(const void* haystack, size_t haystacklen,
 // returns the last occurence byte c in buf. Like strrchr() for binary data.
 void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
+// reentrant (threadsafe) version of strtok(), saves its progress into context.
+char* DG_strtok_r(char* str, const char* delim, char** context);
+
 // returns the length of the '\0'-terminated string s.
 // might be faster than default strnlen(), otherwise it will use default strnlen()
 size_t DG_strnlen(const char* s, size_t n);

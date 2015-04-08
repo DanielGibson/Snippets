@@ -108,6 +108,11 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 // I didn't bother to use a #define because strnlen() (in contrast to strlen())
 // is no compiler-builtin (at least for GCC) anyway.
 
+// like strtok, but threadsafe - saves the context in context.
+// so do char* ctx; foo = DG_strtok_r(bar, " \t", &ctx);
+// See http://linux.die.net/man/3/strtok_r for more details
+DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context);
+
 // returns the length of the '\0'-terminated string s in chars
 // if there is no '\0' in the first n chars, returns n
 DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n);
@@ -173,17 +178,17 @@ DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list
 extern "C" {
 #endif
 
-#ifndef DG_MISC_ASSERT
-#define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
-#include <assert.h>
-#endif
-
 // DG_MISC_NO_GNU_SOURCE can be used to enforce usage of our own memrchr() and memmem() functions
 // on Linux - mostly relevant for testing (they should be faster than my implementation)
 #if !defined(_GNU_SOURCE) && !defined(DG_MISC_NO_GNU_SOURCE)
 #define _GNU_SOURCE // for glibc versions of memrchr() and memmem()
 #define _DG__DEFINED_GNU_SOURCE
 #endif // _GNU_SOURCE
+
+#ifndef DG_MISC_ASSERT
+#define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
+#include <assert.h>
+#endif
 
 #include <string.h>
 
@@ -245,11 +250,16 @@ static void DG__SetExecutablePath(char* exePath)
 #else // the BSDs
 	snprintf(buf, sizeof(buf), "/proc/%d/file", getpid());
 #endif
-	int len = readlink(buf, exePath, PATH_MAX);
+	// readlink() doesn't null-terminate!
+	int len = readlink(buf, exePath, PATH_MAX-1);
 	if (len <= 0)
 	{
 		// an error occured, clear exe path
 		exePath[0] = '\0';
+	}
+	else
+	{
+		exePath[len] = '\0';
 	}
 
 #elif defined(__FreeBSD__)
@@ -442,7 +452,7 @@ DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
 	// haystack length up to afterlast
 	size_t hlen_for_needle_start = afterlast - h;
 	int n0 = n[0];
-	unsigned char* n0candidate = (unsigned char*) memchr(h, n0, hlen_for_needle_start);
+	unsigned char* n0candidate = (unsigned char*)memchr(h, n0, hlen_for_needle_start);
 
 	while(n0candidate != NULL)
 	{
@@ -488,6 +498,50 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 #endif // __GLIBC__
 }
 
+/* 
+ * public domain strtok_r() by Charlie Gordon
+ * see http://groups.google.com/group/comp.lang.c/msg/2ab1ecbb86646684
+ * and http://groups.google.com/group/comp.lang.c/msg/7c7b39328fefab9c
+ * with a fix from Fletcher T. Penney, also in public domain,
+ * see https://github.com/fletcher/MultiMarkdown-4/blob/master/strtok.c
+ */
+DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context)
+{
+	DG_MISC_ASSERT(context && delim, "Don't call DG_strtok_r() with delim or context set to NULL!");
+	DG_MISC_ASSERT(str || *context, "Don't call DG_strtok_r() with *context and str both set to NULL!");
+
+#if !defined(DG_MISC_NO_GNU_SOURCE) && !defined(_WIN32)
+
+	// I think every interesting platform except for Windows supports strtok_r
+	// (if not, add it above with "&& !defined(_OTHER_CRAPPY_PLATFORM)")
+	return strtok_r(str, delim, context);
+
+#else // Windows
+
+	// I don't wanna use MSVC's strtok_s(), because C11 defines a function with
+	// that name but a totally different signature.. and it's not supported
+	// by old MSVC versions.
+	char* ret;
+
+	if (str == NULL) str = *context;
+
+	if (str == NULL) return NULL;
+
+	str += strspn(str, delim);
+
+	if (*str == '\0') return NULL;
+
+	ret = str;
+
+	str += strcspn(str, delim);
+
+	if (*str) *str++ = '\0';
+
+	*context = str;
+
+	return ret;
+#endif // _WIN32
+}
 
 DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 {
@@ -540,7 +594,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 
 	// check bytes between s and s_aln
 	const char* cur = s;
-	for( ; cur != (const char*)s_aln; ++cur)
+	for( ; cur < (const char*)s_aln; ++cur)
 	{
 		if(*cur == '\0')
 		{
