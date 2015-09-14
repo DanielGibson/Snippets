@@ -171,7 +171,7 @@ static void writeStructHeader(FILE* out, struct image img, const char* structNam
 	fputs("\tunsigned int width;\n", out);
 	fputs("\tunsigned int height;\n", out);
 	fputs("\tunsigned int bytes_per_pixel; /* 3:RGB, 4:RGBA */\n", out); // I don't support 2:RGB16
-	// I don't know why "+ 1", but gimp does the same..
+	// the + 1 is for the implicit terminating \0 in the string literal used to initialize pixel_data
 	fprintf(out, "\tunsigned char pixel_data[%d * %d * %d + 1];\n", img.w, img.h, img.format);
 	fprintf(out, "} %s = {\n", structName);
 	fprintf(out, "\t%d, %d, %d,\n", img.w, img.h, img.format);

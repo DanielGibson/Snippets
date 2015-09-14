@@ -102,16 +102,17 @@ DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
 // returns NULL if c wasn't found in buf.
 DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
+// like strtok, but threadsafe - saves the context in context.
+// so do char* ctx; foo = DG_strtok_r(bar, " \t", &ctx);
+// See http://linux.die.net/man/3/strtok_r for more details
+DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context);
+
+
 // on many platforms (incl. windows and freebsd) this implementation is faster
 // than the libc's strnlen(). on others (linux/glibc, OSX) it just calls the
 // ASM-optimized strnlen() provided by the libc.
 // I didn't bother to use a #define because strnlen() (in contrast to strlen())
 // is no compiler-builtin (at least for GCC) anyway.
-
-// like strtok, but threadsafe - saves the context in context.
-// so do char* ctx; foo = DG_strtok_r(bar, " \t", &ctx);
-// See http://linux.die.net/man/3/strtok_r for more details
-DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context);
 
 // returns the length of the '\0'-terminated string s in chars
 // if there is no '\0' in the first n chars, returns n
@@ -635,11 +636,12 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * so I don't have to google that over and over again
  * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c)
  * Visual C++   _MSC_VER
+ * 14.0 (2015)   1900
  * 12.0 (2013)   1800
  * 11.0 (2012)   1700
  * 10.0 (2010)   1600
  * 9.0  (2008)   1500
- * 8.0  (2005)   1400
+ * 8.0  (2005)   1400 // first with 64bit support?
  * 7.1  (2003)   1310
  * 7.0           1300
  * 6.0           1200
