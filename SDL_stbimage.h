@@ -112,8 +112,8 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
 // Creates an SDL_Surface* using the raw RGB(A) pixelData with given width/height
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
-// ! It must be 24bit RGB ("888", bytesPerPixel=3) !
-// !  or 32bit RGBA ("8888", bytesPerPixel=4) data !
+// ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
+// !  or byte-wise 32bit RGBA ("8888", bytesPerPixel=4) data !
 // If freeWithSurface is SDL_TRUE, SDL_FreeSurface() will free the pixelData
 //  you passed with SDL_free() - NOTE that you should only do that if pixelData
 //  was allocated with SDL_malloc(), SDL_calloc() or SDL_realloc()!
@@ -234,9 +234,10 @@ static SDL_Surface* STBIMG__CreateSurfaceImpl(STBIMG__image img, int freeWithSur
 
 	if(freeWithSurface)
 	{
-		// SDL_Surface::flags is supposed to be read-only.. but if the pixeldata
+		// SDL_Surface::flags is documented to be read-only.. but if the pixeldata
 		// has been allocated with SDL_malloc()/SDL_calloc()/SDL_realloc() this
-		// should work (and it currently does). Still kinda ugly.
+		// should work (and it currently does) + @icculus said it's reasonably safe:
+		//  https://twitter.com/icculus/status/667036586610139137 :-)
 		// clear the SDL_PREALLOC flag, so SDL_FreeSurface() free()s the data passed from img.data
 		surf->flags &= ~SDL_PREALLOC;
 	}

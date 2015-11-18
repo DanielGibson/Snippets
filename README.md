@@ -5,6 +5,7 @@ Some standalone source files that don't deserve their own repositories.
 | File                          | Description    |
 |-------------------------------|----------------|
 | [**DG_misc.h**](/DG_misc.h) | A public domain single-header C library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms  |
+| [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain single-header C library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) |
 | [**sdl2_scancode_to_dinput.h**](/sdl2_scancode_to_dinput.h) | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
 | [**ImgToC.c**](/ImgToC.c) | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
 
@@ -64,4 +65,50 @@ int DG_snprintf(char *dst, size_t size, const char *format, ...);
 
 // the same for vsnprintf() (only enabled if you #include <stdarg.h> first!)
 int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
+```
+
+## List of function in **SDL_stbimage.h**
+
+```c
+// loads the image file at the given path into a RGB(A) SDL_Surface
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_Surface* STBIMG_Load(const char* file);
+
+// loads the image file in the given memory buffer into a RGB(A) SDL_Surface
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, int length);
+
+// loads an image file into a RGB(A) SDL_Surface from a seekable SDL_RWops (src)
+// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
+
+
+// Creates an SDL_Surface* using the raw RGB(A) pixelData with given width/height
+// (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
+// ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
+// !  or byte-wise 32bit RGBA ("8888", bytesPerPixel=4) data !
+// If freeWithSurface is SDL_TRUE, SDL_FreeSurface() will free the pixelData
+//  you passed with SDL_free() - NOTE that you should only do that if pixelData
+//  was allocated with SDL_malloc(), SDL_calloc() or SDL_realloc()!
+// Returns NULL on error (in that case pixelData won't be freed!),
+//  use SDL_GetError() to get more information.
+SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int width, int height,
+                                  int bytesPerPixel, SDL_bool freeWithSurface);
+
+
+// creates stbi_io_callbacks and userdata to use stbi_*_from_callbacks() directly,
+//  especially useful to use SDL_RWops with stb_image, without using SDL_Surface
+// src must be readable and seekable!
+// Returns SDL_FALSE on error (SDL_GetError() will give you info), else SDL_TRUE
+// NOTE: If you want to use src twice (e.g. for info and load), remember to rewind
+//       it by seeking back to its initial position and resetting out->atEOF to 0
+//       inbetween the uses!
+SDL_bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RWops* out);
+
+typedef struct {
+	SDL_RWops* src;
+	stbi_io_callbacks stb_cbs;
+	int atEOF; // defaults to 0; 1: reached EOF or error on read, 2: error on seek
+} STBIMG_stbio_RWops;
 ```
