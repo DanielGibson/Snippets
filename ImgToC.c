@@ -22,6 +22,8 @@
  *
  * (C) 2015 Daniel Gibson
  *
+ * Homepage: https://github.com/DanielGibson/Snippets/
+ *
  * License:
  *  This software is in the public domain. Where that dedication is not
  *  recognized, you are granted a perpetual, irrevocable license to copy
@@ -131,6 +133,10 @@ static void displayImage(struct image img)
 									   640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	
 	SDL_Surface* winSurf = SDL_GetWindowSurface(win);
+
+	Uint32 grey = SDL_MapRGB(winSurf->format, 127, 127, 127);
+
+	SDL_FillRect(winSurf, NULL, grey);
 	
 	SDL_BlitSurface(surf, NULL, winSurf, NULL);
 	SDL_UpdateWindowSurface(win);
@@ -154,6 +160,7 @@ static void displayImage(struct image img)
 			}
 		}
 		winSurf = SDL_GetWindowSurface(win);
+		SDL_FillRect(winSurf, NULL, grey);
 		SDL_BlitSurface(surf, NULL, winSurf, NULL);
 		SDL_UpdateWindowSurface(win);
 	}

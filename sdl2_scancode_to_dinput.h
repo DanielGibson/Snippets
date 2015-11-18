@@ -5,6 +5,8 @@
  *
  * (C) 2015 Daniel Gibson
  *
+ * Homepage: https://github.com/DanielGibson/Snippets/
+ *
  * License:
  *  This software is in the public domain. Where that dedication is not
  *  recognized, you are granted a perpetual, irrevocable license to copy

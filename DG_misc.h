@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2015 Daniel Gibson
  *
+ * Homepage: https://github.com/DanielGibson/Snippets/
+ *
  * Do:
  *   #define DG_MISC_IMPLEMENTATION
  * before you include this file in *one* of your .c/.cpp files.
