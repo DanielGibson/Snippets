@@ -4,8 +4,8 @@ Some standalone source files that don't deserve their own repositories.
 
 | File                          | Description    |
 |-------------------------------|----------------|
-| [**DG_misc.h**](/DG_misc.h) | A public domain single-header C library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms  |
-| [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain single-header C library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) |
+| [**DG_misc.h**](/DG_misc.h) | A public domain single-header C library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms - [***List of Functions***]( #list-of-functions-in-dg_misch) |
+| [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain single-header C library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) - [***List of Functions***]( #list-of-function-in-sdl_stbimageh) |
 | [**sdl2_scancode_to_dinput.h**](/sdl2_scancode_to_dinput.h) | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
 | [**ImgToC.c**](/ImgToC.c) | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
 
