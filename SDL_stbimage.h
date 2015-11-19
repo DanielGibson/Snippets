@@ -109,6 +109,15 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 // Returns NULL on error, use SDL_GetError() to get more information.
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
+// loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
+// - without using SDL_RWseek(), for streams that don't support or are slow
+//   at seeking, like on Android if SDL needs to use java InputStreams there
+//   (it reads everything into a buffer and calls STBIMG_LoadFromMemory())
+// src must at least support SDL_RWread() and SDL_RWsize()
+// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
+
 
 // Creates an SDL_Surface* using the raw RGB(A) pixelData with given width/height
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
@@ -372,21 +381,18 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc)
 		return NULL;
 	}
 
-	if(!STBIMG_stbi_callback_from_RW(src, &cbData))
-	{
-		return NULL;
-	}
-
 	srcOffset = SDL_RWtell(src);
-
 	if(srcOffset < 0)
 	{
-		SDL_SetError("STBIMG_Load_RW(): src must be seekable!");
-		return NULL;
+		SDL_SetError("STBIMG_Load_RW(): src must be seekable, maybe use STBIMG_Load_RW_noSeek() instead!");
+		// TODO: or do that automatically? but I think the user should be aware of what they're doing
+		goto end;
 	}
 
-	// TODO: if it turns out that non-seekable RWops are a thing, detect that early,
-	//       read everything from src into a buffer and use STBIMG_LoadFromMemory()?
+	if(!STBIMG_stbi_callback_from_RW(src, &cbData))
+	{
+		goto end;
+	}
 
 	inforet = stbi_info_from_callbacks(&cbData.stb_cbs, &cbData, &img.w, &img.h, &img.format);
 	if(!inforet)
@@ -437,6 +443,61 @@ end:
 		SDL_RWseek(src, srcOffset, RW_SEEK_SET);
 	}
 
+	return ret;
+}
+
+
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc)
+{
+	unsigned char* buf = NULL;
+	Sint64 fileSize = 0;
+	SDL_Surface* ret = NULL;
+
+	if(src == NULL)
+	{
+		SDL_SetError("STBIMG_Load_RW_noSeek(): src was NULL!");
+		return NULL;
+	}
+
+	fileSize = SDL_RWsize(src);
+	if(fileSize < 0)
+	{
+		goto end; // SDL should have set an error already
+	}
+	else if(fileSize == 0)
+	{
+		SDL_SetError("STBIMG_Load_RW_noSeek(): SDL_RWsize(src) returned 0 => empty file/stream?!");
+		goto end;
+	}
+	else if(fileSize > 0x7FFFFFFF)
+	{
+		// stb_image.h uses ints for all sizes, so we can't support more
+		// (but >2GB images are insane anyway)
+		SDL_SetError("STBIMG_Load_RW_noSeek(): SDL_RWsize(src) too big (> 2GB)!");
+		goto end;
+	}
+
+	buf = (unsigned char*)SDL_malloc(fileSize);
+	if(buf == NULL)
+	{
+		SDL_SetError("STBIMG_Load_RW_noSeek(): Couldn't allocate buffer to read src into!");
+		goto end;
+	}
+
+	if(SDL_RWread(src, buf, fileSize, 1) > 0)
+	{
+		// if that fails, STBIMG_LoadFromMemory() has set an SDL error
+		// and ret is NULL, so nothing special to do for us
+		ret = STBIMG_LoadFromMemory(buf, fileSize);
+	}
+
+end:
+	if(freesrc)
+	{
+		SDL_RWclose(src);
+	}
+
+	SDL_free(buf);
 	return ret;
 }
 

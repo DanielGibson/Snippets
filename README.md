@@ -83,6 +83,15 @@ SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, int length);
 // Returns NULL on error, use SDL_GetError() to get more information.
 SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
+// loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
+// - without using SDL_RWseek(), for streams that don't support or are slow
+//   at seeking, like on Android if SDL needs to use java InputStreams there
+//   (it reads everything into a buffer and calls STBIMG_LoadFromMemory())
+// src must at least support SDL_RWread() and SDL_RWsize()
+// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
+
 
 // Creates an SDL_Surface* using the raw RGB(A) pixelData with given width/height
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
