@@ -109,10 +109,12 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 // Returns NULL on error, use SDL_GetError() to get more information.
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
+
 // loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
 // - without using SDL_RWseek(), for streams that don't support or are slow
-//   at seeking, like on Android if SDL needs to use java InputStreams there
-//   (it reads everything into a buffer and calls STBIMG_LoadFromMemory())
+//   at seeking. It reads everything into a buffer and calls STBIMG_LoadFromMemory()
+// You should probably only use this if you *really* have performance problems
+//  because of seeking or your src doesn't support  SDL_RWseek(), but SDL_RWsize()
 // src must at least support SDL_RWread() and SDL_RWsize()
 // if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
@@ -276,7 +278,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 	inforet = stbi_info_from_memory(buffer, length, &img.w, &img.h, &img.format);
 	if(!inforet)
 	{
-		SDL_SetError("STBIMG_LoadFromMemory(): Couldn't load image: %s!\n", stbi_failure_reason());
+		SDL_SetError("STBIMG_LoadFromMemory(): Couldn't get image info: %s!\n", stbi_failure_reason());
 		return NULL;
 	}
 
@@ -398,7 +400,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc)
 	if(!inforet)
 	{
 		if(cbData.atEOF == 2) SDL_SetError("STBIMG_Load_RW(): src must be seekable!");
-		else SDL_SetError("STBIMG_Load_RW(): Couldn't load image: %s!\n", stbi_failure_reason());
+		else SDL_SetError("STBIMG_Load_RW(): Couldn't get image info: %s!\n", stbi_failure_reason());
 		goto end;
 	}
 
