@@ -26,7 +26,7 @@
  *   You can #define SDL_STBIMG_DEF before including this header if you want to
  *   prepend anything to the function signatures (like "static", "inline",
  *   "__declspec(dllexport)", ...)
- *     Example: #define DG_MISC_DEF static inline
+ *     Example: #define SDL_STBIMG_DEF static inline
  *
  *   By default, this deactivates stb_image's load from file functions via
  *   #define STBI_NO_STDIO, as they use stdio.h  and that adds a dependency to the
@@ -199,7 +199,7 @@ SDL_STBIMG_DEF SDL_bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbi
 
 #ifdef SDL_STBIMAGE_IMPLEMENTATION
 
-// make stb_image use SDL_malloc etc, so SDL_FreeSurface() can free()
+// make stb_image use SDL_malloc etc, so SDL_FreeSurface() can SDL_free()
 // the data allocated by stb_image
 #define STBI_MALLOC SDL_malloc
 #define STBI_REALLOC SDL_realloc
