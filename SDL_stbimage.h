@@ -83,6 +83,10 @@
 #ifndef SDL_STBIMG_ALLOW_STDIO
   #define STBI_NO_STDIO // don't need STDIO, will use SDL_RWops to open files
 #endif
+// currently enabling HDR breaks stbi_info_from_callbacks() for TGAs,
+// see https://github.com/nothings/stb/issues/205 (and #204 for a fix)
+// So disable HDR until that's fixed - I guess for most TGA is more important than HDR
+#define STBI_NO_HDR // TODO: once stb_image is fixed, remove this workaround!
 #include "stb_image.h"
 
 // this allows you to prepend stuff to function signatures, e.g. "static"
