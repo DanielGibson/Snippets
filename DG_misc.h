@@ -2,7 +2,7 @@
  * Misc. useful public domain functions.
  * Assumes a C99 compatible Compiler (gcc and clang tested) or MS Visual C++
  *
- * Copyright (C) 2015 Daniel Gibson
+ * Copyright (C) 2015-2016 Daniel Gibson
  *
  * Homepage: https://github.com/DanielGibson/Snippets/
  *
@@ -183,10 +183,6 @@ extern "C" {
 
 // DG_MISC_NO_GNU_SOURCE can be used to enforce usage of our own memrchr() and memmem() functions
 // on Linux - mostly relevant for testing (they should be faster than my implementation)
-#if !defined(_GNU_SOURCE) && !defined(DG_MISC_NO_GNU_SOURCE)
-#define _GNU_SOURCE // for glibc versions of memrchr() and memmem()
-#define _DG__DEFINED_GNU_SOURCE
-#endif // _GNU_SOURCE
 
 #ifndef DG_MISC_ASSERT
 #define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
@@ -436,7 +432,7 @@ DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
 			&& (needle != NULL || needlelen == 0),
 			"Don't pass NULL into DG_memmem(), unless the corresponding len is 0!");
 
-#if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
+#if defined(_GNU_SOURCE) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
 	return memmem(haystack, haystacklen, needle, needlelen);
 #else
@@ -471,14 +467,14 @@ DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
 
 	return NULL; // not found
 
-#endif // __GLIBC__
+#endif // _GNU_SOURCE
 }
 
 
 DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 {
 	DG_MISC_ASSERT(buf != NULL, "Don't pass NULL into DG_memrchr()!");
-#if defined(__GLIBC__) && !defined(DG_MISC_NO_GNU_SOURCE)
+#if defined(_GNU_SOURCE) && !defined(DG_MISC_NO_GNU_SOURCE)
 	// glibc has a very optimized version of this, use that instead
 	return (void*)memrchr(buf, c, buflen);
 #else
@@ -498,7 +494,8 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 	}
 
 	return NULL;
-#endif // __GLIBC__
+#endif // _GNU_SOURCE
+}
 }
 
 /* 
@@ -720,13 +717,6 @@ DG_MISC_DEF int DG_snprintf(char *dst, size_t size, const char *format, ...)
 	return ret;
 }
 #endif // _WIN32
-
-#ifdef _DG__DEFINED_GNU_SOURCE
-// make sure _GNU_SOURCE doesn't leak into files #including this, unless they
-// already #defined it themselves
-#undef _GNU_SOURCE
-#undef _DG__DEFINED_GNU_SOURCE
-#endif // _DG__DEFINED_GNU_SOURCE
 
 #ifdef _DG__DEFINED_PATH_MAX
 #undef PATH_MAX

@@ -268,7 +268,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 	int inforet = 0;
 	SDL_Surface* ret = NULL;
 
-	if(buffer == 0)
+	if(buffer == NULL)
 	{
 		SDL_SetError("STBIMG_LoadFromMemory(): passed buffer was NULL!");
 		return NULL;
