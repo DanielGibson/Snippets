@@ -99,6 +99,13 @@ DG_MISC_DEF size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 DG_MISC_DEF void* DG_memmem(const void* haystack, size_t haystacklen,
                             const void* needle, size_t needlelen);
 
+// search for last occurence of needle in haystack, like DG_memmem() but backwards.
+// haystack and needle are buffers with given lengths in byte and will be
+// interpreted as unsigned char* for comparison. the comparison used is like memcmp()
+// returns the address of the last match, or NULL if it wasn't found
+DG_MISC_DEF void* DG_memrmem(const void* haystack, size_t haystacklen,
+                             const void* needle, size_t needlelen);
+
 // returns the last occurence byte c in buf (searching backwards from buf[buflen-1] on)
 // like strrchr(), but for binary data, or like memchr() but backwards.
 // returns NULL if c wasn't found in buf.
@@ -496,6 +503,45 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 	return NULL;
 #endif // _GNU_SOURCE
 }
+
+DG_MISC_DEF void* DG_memrmem(const void* haystack, size_t haystacklen,
+                             const void* needle, size_t needlelen)
+{
+	DG_MISC_ASSERT((haystack != NULL || haystacklen == 0)
+			&& (needle != NULL || needlelen == 0),
+			"Don't pass NULL into DG_memrmem(), unless the corresponding len is 0!");
+
+	unsigned char* h = (unsigned char*)haystack;
+	unsigned char* n = (unsigned char*)needle;
+
+	if(needlelen == 0) return (void*)(h+haystacklen); // this is kinda analog to DG_memmem()'s behavior
+	if(haystacklen < needlelen) return NULL; // also handles haystacklen == 0
+
+	if(needlelen == 1) return (void*)DG_memrchr(haystack, n[0], haystacklen);
+
+	// TODO: knuth-morris-pratt or boyer-moore or something like that might be a lot faster.
+
+	// the byte after the last byte needle could start at so it'd still fit into haystack
+	unsigned char* afterlast = h + haystacklen - needlelen + 1;
+	// haystack length up to afterlast
+	size_t hlen_for_needle_start = afterlast - h;
+	int n0 = n[0];
+	unsigned char* n0candidate = (unsigned char*)DG_memrchr(h, n0, hlen_for_needle_start);
+
+	while(n0candidate != NULL)
+	{
+		if(memcmp(n0candidate+1, n+1, needlelen-1) == 0)
+		{
+			return (void*)n0candidate;
+		}
+
+		// now n0candidate is the char *after* the end of the part of
+		// the string we still care about
+		hlen_for_needle_start = n0candidate - h;
+		n0candidate = (unsigned char*)DG_memrchr(h, n0, hlen_for_needle_start);
+	}
+
+	return NULL; // not found
 }
 
 /* 

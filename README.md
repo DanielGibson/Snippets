@@ -43,6 +43,10 @@ size_t DG_strlcat(char* dst, const char* src, size_t dstsize);
 void* DG_memmem(const void* haystack, size_t haystacklen,
                 const void* needle, size_t needlelen);
 
+// search for last occurence of needle in haystack, like DG_memmem() but backwards.
+void* DG_memrmem(const void* haystack, size_t haystacklen,
+                 const void* needle, size_t needlelen);
+
 // returns the last occurence byte c in buf. Like strrchr() for binary data.
 void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
