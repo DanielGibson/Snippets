@@ -131,6 +131,10 @@ static void testWithNullterminatedStrings()
 	TEST_MEMRMEM_STR(s, "2f", 12);
 	TEST_MEMRMEM_STR(s, "2a", -1);
 	TEST_MEMRMEM_STR(s, "d2", 11);
+	TEST_MEMRMEM_STR("as", "", 2);
+	TEST_MEMRMEM_STR("s", "b", -1);
+	TEST_MEMRMEM_STR("sb", "c", -1);
+	TEST_MEMRMEM_STR("sb", "b", 1);
 	TEST_MEMRMEM_STR(s, "#asdfasdfasd2fasdfasdP", -1); // longer but identical up the strlen(s)
 	TEST_MEMRMEM_STR(s, ".........................", -1); // just longer
 }
@@ -149,6 +153,7 @@ static void testWithoutNullTermination()
 	TEST_MEMRMEM(s, slen+1, "\0", 2, -1); // neither when looking or two '\0's
 	TEST_MEMRMEM(s, slen+1, "asd", 3, 18);
 	TEST_MEMRMEM(s, slen-1, "asd", 3, 14); // if the last char is "cut off", "asd" won't be there
+	TEST_MEMRMEM(s, slen, "", 0, slen); // empty needle => return haystack+haystackLen
 
 	// string with \0 in the middle
 	//                             111111
@@ -176,8 +181,16 @@ static void testWithoutNullTermination()
 	TEST_MEMRMEM(s2, s2len, "B\0AB", 4, -1);
 	TEST_MEMRMEM(s2, s2len, s2, s2len, 0);
 	TEST_MEMRMEM(s2, s2len-1, s2, s2len, -1);
-	TEST_MEMRMEM("a", 1, "a", 1, 0); // this really checks DG_memrchr(), but that's important too
-	TEST_MEMRMEM("a", 1, "b", 1, -1); // ditto
+
+	// the following really check DG_memrchr() (=> needleLen=1), but that's important too
+	TEST_MEMRMEM("a", 1, "a", 1, 0);
+	TEST_MEMRMEM("a", 1, "b", 1, -1);
+	TEST_MEMRMEM("", 0, "a", 1, -1);
+	TEST_MEMRMEM("a", 0, "a", 1, -1);
+	TEST_MEMRMEM("a", 1, "", 1, -1);
+	TEST_MEMRMEM("a", 2, "", 1, 1);
+	TEST_MEMRMEM("", 1, "", 1, 0);
+	TEST_MEMRMEM("", 1, "", 0, 1); // empty needle => return haystack+haystackLen
 }
 
 static void testDG_strrstr()

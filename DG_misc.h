@@ -493,13 +493,12 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 	// TODO: this could use a variation of the trick used in DG_strnlen(), as described
 	//       on https://graphics.stanford.edu/~seander/bithacks.html#ValueInWord
 
-	if(buflen > 0)
+	unsigned char* cur = (unsigned char*)buf + buflen;
+	const unsigned char* b = (const unsigned char*)buf;
+	while(cur > b) // aborts immediately if buflen == 0
 	{
-		unsigned char* cur = (unsigned char*)buf + buflen;
-		do {
-			--cur;
-			if(*cur == c) return cur;
-		} while(cur != buf);
+		--cur;
+		if(*cur == c) return cur;
 	}
 
 	return NULL;
