@@ -1,5 +1,5 @@
 /*
- * Tests for DG_memrmem()
+ * Tests for DG_memrmem() and DG_strrstr()
  * (C) 2016 Daniel Gibson
  *
  * License:
@@ -50,8 +50,8 @@ static void testmemrmem(const char* haystack, size_t haystackLen, const char* ne
 		if(res == NULL)
 		{
 			fail(func, line, "DG_memrmem( \"%.*s\", %d, \"%.*s\", %d )\n\tdid not return (haystack + %d) but NULL",
-		                  (int)haystackLen, haystack, (int)haystackLen,
-	                          (int)needleLen, needle, (int)needleLen, resultIdx);
+			                  (int)haystackLen, haystack, (int)haystackLen,
+			                  (int)needleLen, needle, (int)needleLen, resultIdx);
 		}
 		else if(haystack + resultIdx != res)
 		{
@@ -59,6 +59,47 @@ static void testmemrmem(const char* haystack, size_t haystackLen, const char* ne
 			                  (int)haystackLen, haystack, (int)haystackLen,
 			                  (int)needleLen, needle, (int)needleLen, resultIdx, (int)(res-haystack));
 		}
+	}
+
+	if(res != NULL && memcmp(res, needle, needleLen) != 0)
+	{
+		fail(func, line, "DG_memrmem( \"%.*s\", %d, \"%.*s\", %d )\n\tdid not return matching memory but %.*s",
+		                  (int)haystackLen, haystack, (int)haystackLen,
+		                  (int)needleLen, needle, (int)needleLen, (int) needleLen, res);
+	}
+}
+
+// resultIdx < 0 means "expect NULL"
+static void teststrrstr(const char* haystack, const char* needle,
+                        int resultIdx, int line, const char* func)
+{
+	const char* res = (const char*)DG_strrstr(haystack, needle);
+	if(resultIdx < 0)
+	{
+		if(res != NULL)
+		{
+			fail(func, line, "DG_strrstr( \"%s\", \"%s\" )\n\tdid not return NULL but (haystack + %d)",
+			                  haystack, needle, (int)(res-haystack));
+		}
+	}
+	else
+	{
+		if(res == NULL)
+		{
+			fail(func, line, "DG_strrstr( \"%s\", \"%s\" )\n\tdid not return (haystack + %d) but NULL",
+		                      haystack, needle, resultIdx);
+		}
+		else if(haystack + resultIdx != res)
+		{
+			fail(func, line, "DG_strrstr( \"%s\", \"%s\" )\n\tdid not return (haystack + %d) but (haystack + %d)",
+			                  haystack, needle, resultIdx, (int)(res-haystack));
+		}
+	}
+
+	if(res != NULL && strncmp(res, needle, strlen(needle)) != 0)
+	{
+		fail(func, line, "DG_strrstr( \"%s\", \"%s\" )\n\tdid not return matching memory but %s",
+		                  haystack, needle, res);
 	}
 }
 
@@ -68,7 +109,10 @@ static void testmemrmem(const char* haystack, size_t haystackLen, const char* ne
 #define TEST_MEMRMEM_STR(haystack, needle, resultIdx) \
 	testmemrmem(haystack, strlen(haystack), needle, strlen(needle), resultIdx, __LINE__, __FUNCTION__)
 
-void testWithNullterminatedStrings()
+#define TEST_STRRSTR(haystack, needle, resultIdx) \
+	teststrrstr(haystack, needle, resultIdx, __LINE__, __FUNCTION__)
+
+static void testWithNullterminatedStrings()
 {
 	//                         111111111122
 	//               0123456789012345678901
@@ -87,7 +131,7 @@ void testWithNullterminatedStrings()
 	TEST_MEMRMEM_STR(s, ".........................", -1); // just longer
 }
 
-void testWithoutNullTermination()
+static void testWithoutNullTermination()
 {
 	//                         111111111122
 	//               0123456789012345678901
@@ -130,13 +174,38 @@ void testWithoutNullTermination()
 	TEST_MEMRMEM(s2, s2len-1, s2, s2len, -1);
 }
 
+static void testDG_strrstr()
+{
+	// it's implemented with DG_memmem(), so just test it here
+
+	//                         111111111122
+	//               0123456789012345678901
+	const char* s = "#asdfasdfasd2fasdfasd";
+	TEST_STRRSTR(s, s, 0);
+	TEST_STRRSTR(s, "#a", 0);
+	TEST_STRRSTR(s, "#", 0);
+	TEST_STRRSTR(s+1, "#", -1); // no more # if starting at s+1
+	TEST_STRRSTR(s, "asd", 18);
+	TEST_STRRSTR(s, "q", -1);
+	TEST_STRRSTR(s, "2", 12);
+	TEST_STRRSTR(s, "2f", 12);
+	TEST_STRRSTR(s, "2a", -1);
+	TEST_STRRSTR(s, "d2", 11);
+	TEST_STRRSTR(s, "#asdfasdfasd2fasdfasdP", -1); // longer but identical up the strlen(s)
+	TEST_STRRSTR(s, ".........................", -1); // just longer
+
+	TEST_STRRSTR("haystack", "needle", -1); // SEE?! it's impossible to find needle in haystack.
+}
+
 int main()
 {
 	testWithNullterminatedStrings();
 
 	testWithoutNullTermination();
 
-	printf("Success! All DG_memrmem() tests passed.\n");
+	testDG_strrstr();
+
+	printf("Success! All DG_memrmem() and DG_strrstr() tests passed.\n");
 
 	return 0;
 }

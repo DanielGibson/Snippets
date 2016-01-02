@@ -50,6 +50,11 @@ void* DG_memrmem(const void* haystack, size_t haystacklen,
 // returns the last occurence byte c in buf. Like strrchr() for binary data.
 void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
+// search for last occurence of needle in haystack, like strstr() but backwards.
+// also like DG_memrmem(), but for '\0'-terminated strings.
+// returns the address of the last match, or NULL if it wasn't found
+char* DG_strrstr(const char* haystack, const char* needle);
+
 // reentrant (threadsafe) version of strtok(), saves its progress into context.
 char* DG_strtok_r(char* str, const char* delim, char** context);
 

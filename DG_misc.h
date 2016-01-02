@@ -111,6 +111,11 @@ DG_MISC_DEF void* DG_memrmem(const void* haystack, size_t haystacklen,
 // returns NULL if c wasn't found in buf.
 DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen);
 
+// search for last occurence of needle in haystack, like strstr() but backwards.
+// also like DG_memrmem(), but for '\0'-terminated strings.
+// returns the address of the last match, or NULL if it wasn't found
+DG_MISC_DEF char* DG_strrstr(const char* haystack, const char* needle);
+
 // like strtok, but threadsafe - saves the context in context.
 // so do char* ctx; foo = DG_strtok_r(bar, " \t", &ctx);
 // See http://linux.die.net/man/3/strtok_r for more details
@@ -542,6 +547,13 @@ DG_MISC_DEF void* DG_memrmem(const void* haystack, size_t haystacklen,
 	}
 
 	return NULL; // not found
+}
+
+DG_MISC_DEF char* DG_strrstr(const char* haystack, const char* needle)
+{
+	size_t hLen = DG_strlen(haystack);
+	size_t nLen = DG_strlen(needle);
+	return (char*)DG_memrmem(haystack, hLen, needle, nLen);
 }
 
 /* 
