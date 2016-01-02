@@ -121,7 +121,6 @@ DG_MISC_DEF char* DG_strrstr(const char* haystack, const char* needle);
 // See http://linux.die.net/man/3/strtok_r for more details
 DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context);
 
-
 // on many platforms (incl. windows and freebsd) this implementation is faster
 // than the libc's strnlen(). on others (linux/glibc, OSX) it just calls the
 // ASM-optimized strnlen() provided by the libc.
@@ -496,13 +495,11 @@ DG_MISC_DEF void* DG_memrchr(const void* buf, unsigned char c, size_t buflen)
 
 	if(buflen > 0)
 	{
-		unsigned char* cur = (unsigned char*)buf + buflen - 1;
+		unsigned char* cur = (unsigned char*)buf + buflen;
 		do {
-			if(*cur == c) return cur;
 			--cur;
+			if(*cur == c) return cur;
 		} while(cur != buf);
-
-		if(*cur == c) return cur;
 	}
 
 	return NULL;

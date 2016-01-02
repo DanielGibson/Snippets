@@ -15,6 +15,10 @@
 #define DG_MISC_NO_GNU_SOURCE
 #include "../DG_misc.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 static void fail(const char* fromfunc, int line, const char* failmsgfmt, ...)
 {
 	printf("!!! %s() line %d:\n\t", fromfunc, line);
@@ -172,6 +176,8 @@ static void testWithoutNullTermination()
 	TEST_MEMRMEM(s2, s2len, "B\0AB", 4, -1);
 	TEST_MEMRMEM(s2, s2len, s2, s2len, 0);
 	TEST_MEMRMEM(s2, s2len-1, s2, s2len, -1);
+	TEST_MEMRMEM("a", 1, "a", 1, 0); // this really checks DG_memrchr(), but that's important too
+	TEST_MEMRMEM("a", 1, "b", 1, -1); // ditto
 }
 
 static void testDG_strrstr()
