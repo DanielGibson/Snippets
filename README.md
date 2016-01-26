@@ -76,7 +76,7 @@ int DG_snprintf(char *dst, size_t size, const char *format, ...);
 int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 ```
 
-## List of function in [**SDL_stbimage.h**](/SDL_stbimage.h)
+## List of functions in [**SDL_stbimage.h**](/SDL_stbimage.h)
 
 ```c
 // loads the image file at the given path into a RGB(A) SDL_Surface
