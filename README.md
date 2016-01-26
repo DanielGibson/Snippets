@@ -4,12 +4,12 @@ Some standalone source files that don't deserve their own repositories.
 
 | File                          | Description    |
 |-------------------------------|----------------|
-| [**DG_misc.h**](/DG_misc.h) | A public domain single-header C library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms - [***List of Functions***]( #list-of-functions-in-dg_misch) |
-| [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain single-header C library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) - [***List of Functions***]( #list-of-function-in-sdl_stbimageh) |
+| [**DG_misc.h**](/DG_misc.h) | A public domain single-header C/C++ library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms - [***List of Functions***]( #list-of-functions-in-dg_misch) |
+| [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain header-only C/C++ library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) - [***List of Functions***]( #list-of-function-in-sdl_stbimageh) |
 | [**sdl2_scancode_to_dinput.h**](/sdl2_scancode_to_dinput.h) | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
 | [**ImgToC.c**](/ImgToC.c) | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
 
-## List of functions in **DG_misc.h**
+## List of functions in [**DG_misc.h**](/DG_misc.h)
 
 The "DG_" prefix is not just to please my big ego, but mostly to (hopefully) avoid name collisions.
 
@@ -76,7 +76,7 @@ int DG_snprintf(char *dst, size_t size, const char *format, ...);
 int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 ```
 
-## List of function in **SDL_stbimage.h**
+## List of function in [**SDL_stbimage.h**](/SDL_stbimage.h)
 
 ```c
 // loads the image file at the given path into a RGB(A) SDL_Surface
