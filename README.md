@@ -98,19 +98,17 @@ SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
 // loads the image file at the given path into a RGB(A) SDL_Texture
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_STBIMG_DEF SDL_Texture*
-STBIMG_LoadTexture(SDL_Renderer* renderer, const char* file);
+SDL_Texture* STBIMG_LoadTexture(SDL_Renderer* renderer, const char* file);
 
 // loads the image file in the given memory buffer into a RGB(A) SDL_Texture
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_STBIMG_DEF SDL_Texture*
+SDL_Texture*
 STBIMG_LoadTextureFromMemory(SDL_Renderer* renderer, const unsigned char* buffer, int length);
 
 // loads an image file into a RGB(A) SDL_Texture from a seekable SDL_RWops (src)
 // if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_STBIMG_DEF SDL_Texture*
-STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
+SDL_Texture* STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
 
 
 
@@ -131,9 +129,8 @@ SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int width, int heigh
 // ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
 // !  or byte-wise 32bit RGBA ("8888", bytesPerPixel=4) data !
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_STBIMG_DEF SDL_Texture*
-STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
-                     int width, int height, int bytesPerPixel);
+SDL_Texture* STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
+                                  int width, int height, int bytesPerPixel);
 
 
 // creates stbi_io_callbacks and userdata to use stbi_*_from_callbacks() directly,
