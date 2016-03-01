@@ -110,17 +110,6 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
 
 
-// loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
-// - without using SDL_RWseek(), for streams that don't support or are slow
-//   at seeking. It reads everything into a buffer and calls STBIMG_LoadFromMemory()
-// You should probably only use this if you *really* have performance problems
-//  because of seeking or your src doesn't support  SDL_RWseek(), but SDL_RWsize()
-// src must at least support SDL_RWread() and SDL_RWsize()
-// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
-// Returns NULL on error, use SDL_GetError() to get more information.
-SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
-
-
 // Creates an SDL_Surface* using the raw RGB(A) pixelData with given width/height
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
 // ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
@@ -132,6 +121,33 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
 //  use SDL_GetError() to get more information.
 SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int width, int height,
                                                  int bytesPerPixel, SDL_bool freeWithSurface);
+
+
+
+// loads the image file at the given path into a RGB(A) SDL_Texture
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture(SDL_Renderer* renderer, const char* file);
+
+// loads the image file in the given memory buffer into a RGB(A) SDL_Texture
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTextureFromMemory(SDL_Renderer* renderer, const unsigned char* buffer, int length);
+
+// loads an image file into a RGB(A) SDL_Texture from a seekable SDL_RWops (src)
+// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
+
+// Creates an SDL_Texture* using the raw RGB(A) pixelData with given width/height
+// (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
+// ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
+// !  or byte-wise 32bit RGBA ("8888", bytesPerPixel=4) data !
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
+                     int width, int height, int bytesPerPixel);
 
 
 
@@ -182,6 +198,20 @@ SDL_STBIMG_DEF SDL_bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbi
   // ... do something with data ...
   stbi_image_free(data);
 #endif // 0 (STBIMG_stbi_callback_from_RW() example)
+
+
+// loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
+// - without using SDL_RWseek(), for streams that don't support or are slow
+//   at seeking. It reads everything into a buffer and calls STBIMG_LoadFromMemory()
+// You should probably only use this if you *really* have performance problems
+//  because of seeking or your src doesn't support  SDL_RWseek(), but SDL_RWsize()
+// src must at least support SDL_RWread() and SDL_RWsize()
+// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// Returns NULL on error, use SDL_GetError() to get more information.
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
+
+// the same for textures (you should probably not use this one, either..)
+SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -430,6 +460,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc)
 	{
 		// no need to log an error here, it was an SDL error which should still be available through SDL_GetError()
 		SDL_free(img.data);
+		img.data = NULL;
 		goto  end;
 	}
 
@@ -538,6 +569,53 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int w
 	img.format = bytesPerPixel;
 
 	return STBIMG__CreateSurfaceImpl(img, freeWithSurface);
+}
+
+static SDL_Texture* STBIMG__SurfToTex(SDL_Renderer* renderer, SDL_Surface* surf)
+{
+	SDL_Texture* ret = NULL;
+	if(surf != NULL)
+	{
+		ret = SDL_CreateTextureFromSurface(renderer, surf);
+		SDL_FreeSurface(surf); // not needed anymore, it's copied into tex
+	}
+	// if surf is NULL, whatever tried to create it should have called SDL_SetError(),
+	// if SDL_CreateTextureFromSurface() returned NULL it should have set an error
+	// so whenever this returns NULL, the user should be able to get a useful
+	// error-message with SDL_GetError().
+	return ret;
+}
+
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture(SDL_Renderer* renderer, const char* file)
+{
+	return STBIMG__SurfToTex(renderer, STBIMG_Load(file));
+}
+
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTextureFromMemory(SDL_Renderer *renderer, const unsigned char* buffer, int length)
+{
+	return STBIMG__SurfToTex(renderer, STBIMG_LoadFromMemory(buffer, length));
+}
+
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc)
+{
+	return STBIMG__SurfToTex(renderer, STBIMG_Load_RW(src, freesrc));
+}
+
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
+                     int width, int height, int bytesPerPixel)
+{
+	SDL_Surface* surf = STBIMG_CreateSurface((unsigned char*)pixelData, width, height, bytesPerPixel, SDL_FALSE);
+	return STBIMG__SurfToTex(renderer, surf);
+}
+
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, int freesrc)
+{
+	return STBIMG__SurfToTex(renderer, STBIMG_Load_RW_noSeek(src, freesrc));
 }
 
 #endif // SDL_STBIMAGE_IMPLEMENTATION

@@ -213,6 +213,8 @@ static void testDG_strrstr()
 	TEST_STRRSTR(s, "#asdfasdfasd2fasdfasdP", -1); // longer but identical up the strlen(s)
 	TEST_STRRSTR(s, ".........................", -1); // just longer
 
+	TEST_STRRSTR("bcabbcbccbbrl", "bbc", 3);
+
 	TEST_STRRSTR("haystack", "needle", -1); // SEE?! it's impossible to find needle in haystack.
 }
 
