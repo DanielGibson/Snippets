@@ -5,7 +5,7 @@ Some standalone source files that don't deserve their own repositories.
 | File                          | Description    |
 |-------------------------------|----------------|
 | [**DG_misc.h**](/DG_misc.h) | A public domain single-header C/C++ library with some useful functions to get the path/dir/name of the current executable and misc. string operations that are not available on all platforms - [***List of Functions***]( #list-of-functions-in-dg_misch) |
-| [**DG_dynarr.h**](/DG_dynarr.h) | A public domain single-header C/C++ library providing typesafe dynamic arrays for plain C, kinda like C++ std::vector. - [***Usage Example and List of Functions***]( #list-of-functions-for-dg_dynarrh) |
+| [**DG_dynarr.h**](/DG_dynarr.h) | A public domain single-header C/C++ library providing typesafe dynamic arrays for plain C, kinda like C++ std::vector. - [***Usage Example and List of Functions***]( #example-and-list-of-functions-for-dg_dynarrh) |
 | [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain header-only C/C++ library for converting images to [SDL2](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) - [***List of Functions***]( #list-of-functions-in-sdl_stbimageh) |
 | [**sdl2_scancode_to_dinput.h**](/sdl2_scancode_to_dinput.h) | One static C array that maps SDL2 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
 | [**ImgToC.c**](/ImgToC.c) | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
@@ -221,7 +221,7 @@ that you can use in case the short form name collides with other names your proj
 
 One thing to keep in mind is that, because of using macros, the arguments to
 the "functions" are usually evaluated more than once, so you should avoid putting
-things with side effect (like function-calls with side effects or i++) into them.
+things with side effect (like function-calls with side effects or `i++`) into them.
 Notable exceptions are the value arguments (`v`) of `da_push()`, `da_set()`
 and `da_insert()`, so it's still ok to do `da_push(arr, fun_with_sideffects());`
 or `da_insert(a, 3, x++);`.
