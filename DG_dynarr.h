@@ -94,7 +94,7 @@
 
      MyIntArrType a2;
      da_init(a2);
-     
+
      da_addn(a2, a1.p, da_count(a1)); // copy all elements from a1 to a2
      assert(da_count(a2) == 4);
 
@@ -353,7 +353,7 @@
 
 // returns a pointer to the past-the-end element of the array
 // Allows C++-style iterating, in case you're into that kind of thing:
-// for(T* it=da_begin(a), end=da_end(a); it!=end; ++it) foo(*it);
+// for(T *it=da_begin(a), *end=da_end(a); it!=end; ++it) foo(*it);
 // (see da_lastptr() to get a pointer *to* the last element)
 #define da_end(a) \
 	dg_dynarr_end(a)
@@ -586,7 +586,7 @@
 
 // returns a pointer to the past-the-end element of the array
 // Allows C++-style iterating, in case you're into that kind of thing:
-// for(T* it=dg_dynarr_begin(a), end=dg_dynarr_end(a); it!=end; ++it) foo(*it);
+// for(T *it=dg_dynarr_begin(a), *end=dg_dynarr_end(a); it!=end; ++it) foo(*it);
 // (see dg_dynarr_lastptr() to get a pointer *to* the last element)
 #define dg_dynarr_end(a) \
 	((a).p + (a).md.cnt)
