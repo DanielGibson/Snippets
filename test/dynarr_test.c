@@ -277,6 +277,16 @@ static void testfoo()
 	for(int i=0; i<da_count(fa1); ++i)
 		printf("# %d: (%d %f)\n", i, fa1.p[i].i, fa1.p[i].d);
 
+	// make sure that fast delete works if after the deleted area
+	// there are less than n elements left
+	da_deletenfast(fa1, 4, 3);
+	// fa1.p[5] is not really valid anymore, but should be untouched
+	assert(da_count(fa1) == 5 && fa1.p[4].i == 7 && fa1.p[3].i == 3 && fa1.p[5].i == 5);
+
+	printf("\n############ cap = %d\n", (int)da_capacity(fa1));
+	for(int i=0; i<da_count(fa1); ++i)
+		printf("# %d: (%d %f)\n", i, fa1.p[i].i, fa1.p[i].d);
+
 	da_free(fa1);
 	da_free(fa2);
 }

@@ -831,8 +831,11 @@ dg__dynarr_deletefast(void** arr, dg__dynarr_md* md, size_t itemsize, size_t idx
 		else
 		{
 			unsigned char* p = (unsigned char*)*arr;
-			// copy the last n items to a[idx]
-			memcpy(p+itemsize*idx, p+itemsize*(cnt - n), itemsize*n);
+			// copy the last n items to a[idx] - but handle the case that
+			// the array has less than n elements left after the deleted elements
+			size_t numItemsAfterDeleted = cnt - (idx+n);
+			size_t m = (n < numItemsAfterDeleted) ? n : numItemsAfterDeleted;
+			memcpy(p+itemsize*idx, p+itemsize*(cnt - m), itemsize*m);
 			md->cnt -= n;
 		}
 	}
