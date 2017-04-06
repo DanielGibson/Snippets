@@ -414,8 +414,7 @@
 
 // add an element to the array (appended at the end)
 #define dg_dynarr_push(a, v) \
-	(dg__dynarr_maybegrowadd(dg__dynarr_unp(a), 1), \
-	 ((a).md.cap ? (((a).p[(a).md.cnt++] = (v)),0) : 0))
+	(dg__dynarr_maybegrowadd(dg__dynarr_unp(a), 1) ? (((a).p[(a).md.cnt++] = (v)),0) : 0)
 
 // add an element to the array (appended at the end)
 // does the same as push, just for consistency with addn (like insert and insertn)
@@ -517,8 +516,7 @@
 // if cnt > dg_dynarr_count(a), the logical count will be increased accordingly
 // and the new elements will be uninitialized
 #define dg_dynarr_setcount(a, n) \
-	(dg__dynarr_maybegrow(dg__dynarr_unp(a), (n)), \
-		(a).md.cap ? ((a).md.cnt = (n)) : 0)
+	(dg__dynarr_maybegrow(dg__dynarr_unp(a), (n)) ? ((a).md.cnt = (n)) : 0)
 
 // make sure the array can store cap elements without reallocating
 // logical count remains unchanged
@@ -771,16 +769,13 @@ dg__dynarr_insert(void** arr, dg__dynarr_md* md, size_t itemsize, size_t idx, si
 	if(idx <= oldCount && dg__dynarr_maybegrow(arr, md, itemsize, newCount))
 	{
 		unsigned char* p = (unsigned char*)*arr; // *arr might have changed in dg__dynarr_grow()!
-		if(p != NULL) // check if growing failed - FIXME: in that case dg__dynarr_maybegrow() returns 0.
-		{
-			// move all existing items after a[idx] to a[idx+n]
-			if(idx < oldCount)  memmove(p+(idx+n)*itemsize, p+idx*itemsize, itemsize*(oldCount - idx));
+		// move all existing items after a[idx] to a[idx+n]
+		if(idx < oldCount)  memmove(p+(idx+n)*itemsize, p+idx*itemsize, itemsize*(oldCount - idx));
 
-			// if the memory is supposed to be zeroed, do that
-			if(init0)  memset(p+idx*itemsize, 0, n*itemsize);
+		// if the memory is supposed to be zeroed, do that
+		if(init0)  memset(p+idx*itemsize, 0, n*itemsize);
 
-			md->cnt = newCount;
-		}
+		md->cnt = newCount;
 		return 1;
 	}
 	return 0;
@@ -793,13 +788,10 @@ dg__dynarr_add(void** arr, dg__dynarr_md* md, size_t itemsize, size_t n, int ini
 	if(dg__dynarr_maybegrow(arr, md, itemsize, cnt+n))
 	{
 		unsigned char* p = (unsigned char*)*arr; // *arr might have changed in dg__dynarr_grow()!
-		if(p != NULL) // check if growing failed
-		{
-			// if the memory is supposed to be zeroed, do that
-			if(init0)  memset(p+cnt*itemsize, 0, n*itemsize);
+		// if the memory is supposed to be zeroed, do that
+		if(init0)  memset(p+cnt*itemsize, 0, n*itemsize);
 
-			md->cnt += n;
-		}
+		md->cnt += n;
 		return 1;
 	}
 	return 0;
