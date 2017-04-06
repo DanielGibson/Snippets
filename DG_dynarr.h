@@ -60,6 +60,11 @@
  *   license: you are granted a perpetual, irrevocable license to copy, modify,
  *   publish, and distribute this file as you see fit.
  *   No warranty implied; use at your own risk.
+ *
+ * So you can do whatever you want with this code, including copying it
+ * (or parts of it) into your own source.
+ * No need to mention me or this "license" in your code or docs, even though
+ * it would be appreciated, of course.
  */
 #if 0 // Usage Example:
  #define DG_DYNARR_IMPLEMENTATION // this define is only needed in *one* .c/.cpp file!

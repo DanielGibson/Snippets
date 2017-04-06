@@ -689,6 +689,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * so I don't have to google that over and over again
  * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c)
  * Visual C++   _MSC_VER
+ * 15.0 (2017)   1910 (at least "Preview 5", next Preview/Release might be 1911)
  * 14.0 (2015)   1900
  * 12.0 (2013)   1800
  * 11.0 (2012)   1700
