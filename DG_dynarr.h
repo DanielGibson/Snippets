@@ -59,6 +59,7 @@
  *   This software is dual-licensed to the public domain and under the following
  *   license: you are granted a perpetual, irrevocable license to copy, modify,
  *   publish, and distribute this file as you see fit.
+ *   No warranty implied; use at your own risk.
  */
 #if 0 // Usage Example:
  #define DG_DYNARR_IMPLEMENTATION // this define is only needed in *one* .c/.cpp file!

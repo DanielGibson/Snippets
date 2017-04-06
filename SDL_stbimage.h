@@ -43,9 +43,9 @@
  *   #define STBI_NO_LINEAR and #define STBI_NO_HDR before including this header.
  *
  * License:
- *   This software is in the public domain. Where that dedication is not
- *   recognized, you are granted a perpetual, irrevocable license to copy
- *   and modify this file however you want.
+ *   This software is dual-licensed to the public domain and under the following
+ *   license: you are granted a perpetual, irrevocable license to copy, modify,
+ *   publish, and distribute this file as you see fit.
  *   No warranty implied; use at your own risk.
  *
  * So you can do whatever you want with this code, including copying it
