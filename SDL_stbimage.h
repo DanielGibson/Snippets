@@ -123,7 +123,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int w
                                                  int bytesPerPixel, SDL_bool freeWithSurface);
 
 
-
+#if SDL_MAJOR_VERSION > 1
 // loads the image file at the given path into a RGB(A) SDL_Texture
 // Returns NULL on error, use SDL_GetError() to get more information.
 SDL_STBIMG_DEF SDL_Texture*
@@ -148,7 +148,7 @@ STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
                      int width, int height, int bytesPerPixel);
-
+#endif // SDL_MAJOR_VERSION > 1
 
 
 typedef struct {
@@ -200,6 +200,7 @@ SDL_STBIMG_DEF SDL_bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbi
 #endif // 0 (STBIMG_stbi_callback_from_RW() example)
 
 
+#if SDL_MAJOR_VERSION > 1
 // loads an image file into a RGB(A) SDL_Surface from a SDL_RWops (src)
 // - without using SDL_RWseek(), for streams that don't support or are slow
 //   at seeking. It reads everything into a buffer and calls STBIMG_LoadFromMemory()
@@ -212,6 +213,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc);
 
 // the same for textures (you should probably not use this one, either..)
 SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
+#endif // SDL_MAJOR_VERSION > 1
 
 #ifdef __cplusplus
 } // extern "C"
@@ -479,7 +481,7 @@ end:
 	return ret;
 }
 
-
+#if SDL_MAJOR_VERSION > 1
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, int freesrc)
 {
 	unsigned char* buf = NULL;
@@ -533,6 +535,7 @@ end:
 	SDL_free(buf);
 	return ret;
 }
+#endif // SDL_MAJOR_VERSION > 1
 
 
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load(const char* file)
@@ -571,6 +574,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int w
 	return STBIMG__CreateSurfaceImpl(img, freeWithSurface);
 }
 
+#if SDL_MAJOR_VERSION > 1
 static SDL_Texture* STBIMG__SurfToTex(SDL_Renderer* renderer, SDL_Surface* surf)
 {
 	SDL_Texture* ret = NULL;
@@ -617,5 +621,6 @@ STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, int freesrc
 {
 	return STBIMG__SurfToTex(renderer, STBIMG_Load_RW_noSeek(src, freesrc));
 }
+#endif // SDL_MAJOR_VERSION > 1
 
 #endif // SDL_STBIMAGE_IMPLEMENTATION
