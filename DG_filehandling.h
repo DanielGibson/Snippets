@@ -49,7 +49,7 @@ enum {
 
 typedef struct dgfh_dirent
 {
-	enum DGFH_TYPE type; // type of this file (or directory or whatever)
+	int type; // type of this file (DGFH_REGULAR_FILE or DGFH_DIRECTORY or whatever)
 	char name[DGFH_PATH_MAX]; // filename (relative to the directory you passed to dgfh_opendir())
 } dgfh_dirent;
 
@@ -120,7 +120,6 @@ struct dgfh_dir
 	int accepted_types;
 
 #ifdef _WIN32
-	// TODO whatever we need here
 	WIN32_FIND_DATAW find_data;
 	HANDLE handle;
 	BOOL have_more_data;
@@ -137,6 +136,8 @@ struct dgfh_dir
 	size_t name_len;
 #endif
 };
+
+#ifdef _DGFH_POSIX
 
 static size_t _dgfh_strlcpy(char* dst, const char* src, size_t dstsize)
 {
@@ -170,7 +171,7 @@ static size_t _dgfh_strlcat(char* dst, const char* src, size_t dstsize)
 	{
 		size_t numchars = dstsize-dstlen-1;
 
-		if(srclen < numchars) numchars = srclen;
+		if(srclen < numchars)  numchars = srclen;
 
 		memcpy(dst+dstlen, src, numchars);
 		dst[dstlen+numchars] = '\0';
@@ -179,15 +180,13 @@ static size_t _dgfh_strlcat(char* dst, const char* src, size_t dstsize)
 	return dstlen + srclen;
 }
 
-
-#ifdef _DGFH_POSIX
 DGFH_DEF dgfh_dir* dgfh_opendir(const char* directory_name, int accepted_types)
 {
 	dgfh_dir* ret = NULL;
 	DIR* dir = NULL;
 
 	size_t dirname_len = strlen(directory_name);
-	if(dirname_len > DGFH_PATH_MAX-1)
+	if(dirname_len > DGFH_PATH_MAX-2) // -2 leaves space to add a '/' and terminating '\0'
 	{
 		// TODO: assert(0); ?? log error or sth?
 		return NULL;
@@ -258,8 +257,11 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir)
 				{
 					// fall back to normal stat() which implies concatenating the paths first
 					char full_path[DGFH_PATH_MAX];
-					memcpy(full_path, dir->name, dir->name_len+1); // +1 for term. '\0'
-					if(_dgfh_strlcat(full_path, name, DGFH_PATH_MAX) < DGFH_PATH_MAX
+					int dir_len = dir->name_len;
+					memcpy(full_path, dir->name, dir_len);
+					full_path[dir_len] = '/';
+					full_path[dir_len+1] = '\0';
+					if(_dgfh_strlcat(full_path, name, DGFH_PATH_MAX) > DGFH_PATH_MAX
 					   || stat(full_path, &stat_buf) != 0)
 					{
 						stat_buf.st_mode = 0;
@@ -280,7 +282,7 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir)
 				}
 			}
 
-			// TODO: if(ent->d_name[0] == '.')  our_type |= DGFH_HIDDEN; ?? only if our_type != 0?
+			// TODO: if(our_type != 0 && ent->d_name[0] == '.')  our_type |= DGFH_HIDDEN; ??
 
 			if(our_type & accepted_types)
 			{
@@ -319,14 +321,13 @@ DGFH_DEF dgfh_dir* dgfh_opendir(const char* directory_name, int accepted_types)
 	WCHAR nameW[DGFH_PATH_MAX] = {0};
 	// convert directory_name to WCHAR
 	int len = MultiByteToWideChar(CP_UTF8, 0, directory_name, -1, nameW, DGFH_PATH_MAX);
-	// TODO: is *.* sufficient? does it also match dir/README and dir/.bla and dir/foo.bar.baz and dir/rumms.bumms. ?
 	WCHAR* append_str = L"/*.*";
 	int append_str_len = 4;
 	if(len <= 0)  return NULL;
 
 	if(nameW[len-1] == L'/' || nameW[len-1] == L'\\')
 	{
-		append_str = L"*.*"
+		append_str = L"*.*";
 		append_str_len = 3;
 	}
 
@@ -334,9 +335,8 @@ DGFH_DEF dgfh_dir* dgfh_opendir(const char* directory_name, int accepted_types)
 	{
 		return NULL;
 	}
-	// TODO: maybe replace forward-slashes? (test if needed!)
 
-	h = FindFirstFileW(nameW, find_data);
+	h = FindFirstFileW(nameW, &find_data);
 	if(h == INVALID_HANDLE_VALUE)  return NULL;
 
 	ret = (dgfh_dir*)calloc(1, sizeof(dgfh_dir));
@@ -349,6 +349,7 @@ DGFH_DEF dgfh_dir* dgfh_opendir(const char* directory_name, int accepted_types)
 	ret->handle = h;
 	ret->find_data = find_data;
 	ret->accepted_types = accepted_types;
+	ret->have_more_data = TRUE;
 	return ret;
 }
 
@@ -357,14 +358,21 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir)
 {
 	if(dir != NULL && dir->have_more_data)
 	{
-		BOOL have_more_data = dir->have_more_data;
 		int accepted_types = dir->accepted_types;
 		dgfh_dirent* dirent = &dir->dir_entry;
 		WIN32_FIND_DATAW* find_data = &dir->find_data;
-		while(have_more_data)
+		HANDLE handle = dir->handle;
+		for(BOOL have_more_data = dir->have_more_data; have_more_data;
+		    have_more_data = FindNextFileW(handle, find_data))
 		{
 			DWORD file_attr = find_data->dwFileAttributes;
+			const WCHAR* name = find_data->cFileName;
+
 			int our_type = DGFH_REGULAR_FILE;
+
+			// skip "." and ".."
+			if(name[0] == L'.' && (name[1] == 0 || (name[1] == L'.' && name[2] == 0)))  continue;
+
 			if(file_attr & FILE_ATTRIBUTE_DIRECTORY)    our_type = DGFH_DIRECTORY;
 			else if(file_attr & FILE_ATTRIBUTE_DEVICE)  our_type = DGFH_BLOCK_DEVICE; // TODO: or DGFH_CHAR_DEVICE ??
 			// TODO: FILE_ATTRIBUTE_OFFLINE => DGFH_UNKNOWN ? other flags that should be handled that way?
@@ -376,23 +384,21 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir)
 			if(our_type & accepted_types)
 			{
 				// convert the WCHAR filename from find_data to UTF-8, save directly in dirent->name
-				if(WideCharToMultiByte(CP_UTF8, 0, find_data->cFileName, -1, dirent->name, DGFH_PATH_MAX, NULL, NULL) > 0)
+				if(WideCharToMultiByte(CP_UTF8, 0, name, -1, dirent->name, DGFH_PATH_MAX, NULL, NULL) > 0)
 				{
 					dirent->type = our_type;
 
 					// make sure dir->have_more_data and dir->find_data always contain the *next* search result
 					// (because it starts with the one from FindFirstFileW() in dgfh_opendir())
-					dir->have_more_data = FindNextFileW(dir->handle, find_data);
+					dir->have_more_data = FindNextFileW(handle, find_data);
 					return dirent;
 				}
 			}
-
-			have_more_data = FindNextFileW(dir->handle, find_data);
 		}
 
 		// we only get here if we found no matching file
 		// and FindNextFileW() returned FALSE (=> no more files in directory)
-		dir->have_more_data = 0;
+		dir->have_more_data = FALSE;
 	}
 	return NULL;
 }
