@@ -1,8 +1,11 @@
 /*
  * (C) 2017 Daniel Gibson
  *
- * All Strings are UTF-8 (on Windows they're converted from/to WCHAR pseudo UTF-16
- * before calling functions)
+ * Some crossplatform file-handling functions.
+ *
+ * All filename strings are in UTF-8 (on Windows they're converted from/to WCHAR
+ * pseudo UTF-16 before calling the corresponding functions, otherwise they're
+ * used as is, assuming that everyone else uses UTF-8)
  *
  * LICENSE
  *   This software is dual-licensed to the public domain and under the following
@@ -25,8 +28,8 @@ extern "C" {
 
 // this allows you to prepend stuff to function signatures, e.g. "static"
 #ifndef DGFH_DEF
-// by default it's empty
-#define DGFH_DEF
+  // by default it's empty
+  #define DGFH_DEF
 #endif // DG_MISC_DEF
 
 enum DGFH_TYPE {
@@ -72,6 +75,28 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir);
 // closes the given dgfh_dir, call this when you're done calling dgfh_next_dir_entry()
 // returns 0 on success TODO: or maybe some enum value or whatever?
 DGFH_DEF int dgfh_close_dir(dgfh_dir* dir);
+
+// TODO: functions to delete, rename, copy files (and maybe even whole directories?)
+
+#ifdef _WIN32 // UTF-8 wrappers for standard-functions
+
+  // fopen()-wrapper that uses UTF-8 for filename (instead of whatever 8bit charset your windows installation uses)
+  DGFH_DEF FILE* fopen_utf8(const char* filename, const char* mode);
+
+  // chdir()/_chdir()-wrapper that uses UTF-8 for filename (instead of whatever 8bit charset your windows installation uses)
+  DGFH_DEF int chdir_utf8(const char* directory_name);
+
+  // TODO: maybe some windows-only wrappers for common WinAPI functions like CreateFile()
+
+#else // not Windows - should support UTF-8 natively, just alias the normal functions
+
+  // fopen() that accepts UTF-8 argument.. just an alias on this platform
+  #define fopen_utf8(filename, mode)  fopen(filename, mode)
+
+  // chdir() that accepts UTF-8 argument.. just an alias on this platform
+  #define chdir_utf8(dirname)  chdir(dirname)
+
+#endif // not Windows
 
 #ifdef __cplusplus
 } // extern "C"
@@ -252,7 +277,7 @@ DGFH_DEF dgfh_dirent* dgfh_next_dir_entry(dgfh_dir* dir)
 				struct stat stat_buf = {0};
 #ifdef _DGFH_HAVE_FSTATAT
 				// try fstatat() first
-				if(dir->dir_fd > 0 && fstatat( dir->dir_fd, name, &stat_buf, 0 ) != 0)
+				if(dir->dir_fd <= 0 || fstatat(dir->dir_fd, name, &stat_buf, 0) != 0)
 #endif
 				{
 					// fall back to normal stat() which implies concatenating the paths first
@@ -413,6 +438,33 @@ DGFH_DEF int dgfh_close_dir(dgfh_dir* dir)
 		return 1;
 	}
 	return 0;
+}
+
+// some UTF-8 wrappers for standard (and maybe WinAPI) functions
+
+DGFH_DEF FILE* fopen_utf8(const char* filename, const char* mode)
+{
+	WCHAR nameW[DGFH_PATH_MAX] = { 0 };
+	WCHAR modeW[16] = { 0 };
+	int len = MultiByteToWideChar(CP_UTF8, 0, filename, -1, nameW, DGFH_PATH_MAX);
+	if(len > 0 && MultiByteToWideChar(CP_UTF8, 0, mode, -1, modeW, 16) > 0)
+	{
+		// this shuts up the complaints about _wfopen() being unsafe..
+		// TODO: use return _wfopen(nameW, modeW); on older compilers that don't support _wfopen_s()? (which?)
+		FILE* ret = NULL;
+		if(_wfopen_s(&ret, nameW, modeW) == 0)  return ret;
+	}
+	return NULL;
+}
+
+DGFH_DEF int chdir_utf8(const char* directory_name)
+{
+	WCHAR nameW[DGFH_PATH_MAX] = { 0 };
+	if(MultiByteToWideChar(CP_UTF8, 0, directory_name, -1, nameW, DGFH_PATH_MAX) > 0)
+	{
+		return _wchdir(nameW);
+	}
+	return 1; // TODO: or what?
 }
 
 #else
