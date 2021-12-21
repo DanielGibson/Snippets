@@ -687,10 +687,31 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 #ifdef _WIN32
 /* value of _MSC_VER macro for different MSVC versions,
  * so I don't have to google that over and over again
- * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c)
- * Visual C++   _MSC_VER
+ * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c
+ *  and https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=vs-2019)
+ * Visual C++    _MSC_VER
+ *
+ * 17.0  (2022)  1930 // Visual Studio 2022 RTW ("Release to Web")
+ *
+ * 16.10 (2019)  1929 // Visual Studio 2019 16.10 and 16.11
+ * 16.8  (2019)  1928 // Visual Studio 2019 16.8 and 16.9
+ * 16.7  (2019)  1927
+ * 16.6  (2019)  1926
+ * 16.5  (2019)  1925
+ * 16.4  (2019)  1924
+ * 16.3  (2019)  1923
+ * 16.2  (2019)  1922
+ * 16.1  (2019)  1921
+ * 16.0  (2019)  1920 // Visual Studio 2019 RTW
+ *
+ * 15.9 (2017)   1916
+ * 15.8 (2017)   1915
+ * 15.7 (2017)   1914
+ * 15.6 (2017)   1913
+ * 15.5 (2017)   1912
  * 15.3 (2017)   1911 // "Visual Studio 2017 Version 15.3 Preview"
- * 15.0 (2017)   1910
+ * 15.0 (2017)   1910 // Visual Studio 2017 RTW
+ *
  * 14.0 (2015)   1900
  * 12.0 (2013)   1800
  * 11.0 (2012)   1700
