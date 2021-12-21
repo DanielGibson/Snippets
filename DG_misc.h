@@ -131,18 +131,22 @@ DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context);
 // if there is no '\0' in the first n chars, returns n
 DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n);
 
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(_MSC_VER) && _MSC_VER >= 1900 // Visual Studio >= 2015 or not Windows
+
 // other libc implementations have a fast strlen... use a #define so compilers
 // recognizes strlen and can optimize/use a builtin
+
+// also use builtin strlen with newer VS versions as their ASan doesn't
+// like my ugly strlen()-tricks; also, VS has strlen() as builtin/intrinsic
 
 // returns the length of the '\0'-terminated string s in chars
 #define DG_strlen strlen
 
-// other libc implementors than Microsoft implemented (v)snprintf() properly.
+// other libc implementors than Microsoft (before VS2015) implemented (v)snprintf() properly.
 #define DG_snprintf snprintf
 #define DG_vsnprintf vsnprintf
 
-#else // it *is* _WIN32, DG_strlen(), DG_snprintf() and DG_vsnprintf(), implemented as functions on win32
+#else // it *is* _WIN32 and either not Visual Studio or a version < 2015
 
 // returns the length of the '\0'-terminated string s in chars
 DG_MISC_DEF size_t DG_strlen(const char* s);
@@ -154,10 +158,15 @@ DG_MISC_DEF size_t DG_strlen(const char* s);
 //   int DG_snprintf(char *dst, size_t size, const char *format, ...);
 
 // several different cases to do printf format checking with different compilers for DG_snprintf()
-#if defined(_MSC_VER) && _MSC_VER >= 1400 // MSVC2005 and newer have an annotation. only used in /analyze builds.
+#if defined(_MSC_VER) && _MSC_VER >= 1400 && _MSC_VER < 1900
+	// VS2005 and newer have an annotation (only used in /analyze builds).
+	// it's deprecated/removed in VS2015 and newer..
+	// for VS2015+ we could #include <sal.h> and use _Printf_format_string_, but it
+	// also (finally) provides a proper (v)snprintf(), so we just set #defines above
 	#include <CodeAnalysis\SourceAnnotations.h>
 	DG_MISC_DEF int DG_snprintf(char *dst, size_t size,
 	             [SA_FormatString(Style="printf")] const char *format, ...);
+
 #elif defined(__GNUC__) // mingw or similar, checking with GCC attribute
 	DG_MISC_DEF int DG_snprintf(char *dst, size_t size,
 	             const char *format, ...) __attribute__ ((format (printf, 3, 4)));
@@ -167,15 +176,15 @@ DG_MISC_DEF size_t DG_strlen(const char* s);
 
 #ifdef va_start // it's a macro and defined if the user #included stdarg.h
 
-// a vsnprintf() implementation that is conformant to C99 by ensuring
-// '\0'-termination of dst and returning the number of chars (without
-// terminating '\0') that would've been written to a big enough buffer
-// However, it still might do microsoft-specific printf formatting
-DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
+	// a vsnprintf() implementation that is conformant to C99 by ensuring
+	// '\0'-termination of dst and returning the number of chars (without
+	// terminating '\0') that would've been written to a big enough buffer
+	// However, it still might do microsoft-specific printf formatting
+	DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 
 #endif // va_start
 
-#endif // _WIN32
+#endif // _WIN32 and either not Visual Studio or a version < 2015
 
 #ifdef __cplusplus
 } // extern "C"
@@ -728,6 +737,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * 1.0           800
  */
 
+#ifndef DG_strlen // if it's not just a #define for regular strlen
 
 DG_MISC_DEF size_t DG_strlen(const char* s)
 {
@@ -739,6 +749,10 @@ DG_MISC_DEF size_t DG_strlen(const char* s)
 	static const char* maxaddr = (const char*)(~((uintptr_t)0));
 	return DG_strnlen(s, maxaddr - s);
 }
+
+#endif // DG_strlen
+
+#ifndef DG_vsnprintf // if it's not just a #define for regular vsnprintf
 
 DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap)
 {
@@ -777,6 +791,9 @@ DG_MISC_DEF int DG_vsnprintf(char *dst, size_t size, const char *format, va_list
 
 	return ret;
 }
+#endif // DG_vsnprintf
+
+#ifndef DG_snprintf // if it's not just a #define to regular snprintf()
 
 DG_MISC_DEF int DG_snprintf(char *dst, size_t size, const char *format, ...)
 {
@@ -793,6 +810,8 @@ DG_MISC_DEF int DG_snprintf(char *dst, size_t size, const char *format, ...)
 
 	return ret;
 }
+#endif // DG_snprintf is defined
+
 #endif // _WIN32
 
 #ifdef _DG__DEFINED_PATH_MAX
