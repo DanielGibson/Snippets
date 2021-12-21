@@ -5,7 +5,7 @@
  * Supports all filetypes supported by stb_image (JPEG, PNG, TGA, BMP, PSD, ...
  * See stb_image.h for details).
  *
- * (C) 2015 Daniel Gibson
+ * (C) 2015-2021 Daniel Gibson
  *
  * Homepage: https://github.com/DanielGibson/Snippets/
  *
@@ -248,6 +248,19 @@ typedef struct {
 static SDL_Surface* STBIMG__CreateSurfaceImpl(STBIMG__image img, int freeWithSurface)
 {
 	SDL_Surface* surf = NULL;
+	
+#if SDL_VERSION_ATLEAST(2, 0, 5)
+	
+	// SDL 2.0.5 introduced SDL_CreateRGBSurfaceWithFormatFrom() and SDL_PIXELFORMAT_RGBA32
+	// which makes this code much simpler.
+	
+	Uint32 format = (img.format == STBI_rgb) ? SDL_PIXELFORMAT_RGB24 : SDL_PIXELFORMAT_RGBA32;
+	
+	surf = SDL_CreateRGBSurfaceWithFormatFrom((void*)img.data, img.w, img.h,
+	                                          img.format*8, img.format*img.w, format);
+	
+#else // older SDL2 version without SDL_CreateRGBSurfaceWithFormatFrom()
+	
 	Uint32 rmask, gmask, bmask, amask;
 	// ok, the following is pretty stupid.. SDL_CreateRGBSurfaceFrom() pretends to use
 	// a void* for the data, but it's really treated as endian-specific Uint32*
@@ -268,6 +281,7 @@ static SDL_Surface* STBIMG__CreateSurfaceImpl(STBIMG__image img, int freeWithSur
 	surf = SDL_CreateRGBSurfaceFrom((void*)img.data, img.w, img.h,
 	                                img.format*8, img.format*img.w,
 	                                rmask, gmask, bmask, amask);
+#endif // SDL_VERSION_ATLEAST
 
 	if(surf == NULL)
 	{
