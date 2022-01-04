@@ -261,6 +261,27 @@ extern "C" {
 #include <mach-o/dyld.h> // _NSGetExecutablePath
 #endif
 
+#ifdef _WIN32
+  // https://devblogs.microsoft.com/cppblog/stl-bugs-fixed-in-visual-studio-2012/
+  // says that before VS2012 they defined UINTPTR_MAX incorrectly on 64bit platforms :-/
+  // so don't use it there, even if available..
+  #ifdef _WIN64
+    #define DG_MISC_IS_64BIT
+  #else
+    #define DG_MISC_IS_32BIT
+  #endif
+#elif defined(UINTPTR_MAX) // hopefully other compilers/standardlibs didn't screw that up
+  #if UINTPTR_MAX == 0xfffffffful
+    #define DG_MISC_IS_32BIT
+  #elif UINTPTR_MAX == 0xffffffffffffffffull
+    #define DG_MISC_IS_64BIT
+  #else
+    #error "UINTPTR_MAX has unexpected value; this only supports 32 and 64 bit systems!"
+  #endif
+#else
+  #error "can't determine if compiling for a 32bit or 64bit platform"
+#endif
+
 #ifndef PATH_MAX
 // this is mostly for windows. windows has a MAX_PATH = 260 #define, but allows
 // longer paths anyway.. this might not be the maximum allowed length, but is
@@ -650,14 +671,14 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 	DG_MISC_STATIC_ASSERT(sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8, DG_strnlen_only_supports_32_and_64_bit_systems);
 
 	// these magic numbers are used for the trick:
-#if defined(_MSC_VER) && !defined(_WIN64)
-	// some older MSVC versions (tested 6.0) don't support ULL suffixes.. not sure
-	// when they started supporting them, but for non-64bit windows these constants works
+#ifdef DG_MISC_IS_32BIT
 	static const uintptr_t magic1 = 0x01010101uL;
 	static const uintptr_t magic2 = 0x80808080uL;
-#else // better compilers/64bit win
-	static const uintptr_t magic1 = (sizeof(uintptr_t) == 4) ? 0x01010101uL : 0x0101010101010101uLL;
-	static const uintptr_t magic2 = (sizeof(uintptr_t) == 4) ? 0x80808080uL : 0x8080808080808080uLL;
+#elif defined(DG_MISC_IS_64BIT)
+	static const uintptr_t magic1 = 0x0101010101010101uLL;
+	static const uintptr_t magic2 = 0x8080808080808080uLL;
+#else
+	#error "no 32 or 64bit platform?!"
 #endif
 
 	// let's get the empty buffer special case out of the way...
