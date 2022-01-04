@@ -2,7 +2,7 @@
  * Misc. useful public domain functions.
  * Assumes a C99 compatible Compiler (gcc and clang tested) or MS Visual C++
  *
- * Copyright (C) 2015-2016 Daniel Gibson
+ * Copyright (C) 2015-2022 Daniel Gibson
  *
  * Homepage: https://github.com/DanielGibson/Snippets/
  *
@@ -651,11 +651,35 @@ DG_MISC_DEF char* DG_strtok_r(char* str, const char* delim, char** context)
 #endif // _WIN32
 }
 
+// helper for DG_strnlen() that checks the next sizeof(uintptr_t) bytes
+// (starting at cur) for '\0', returns whole string length based on base string s
+// SHOULD ONLY BE CALLED IF YOU'RE SURE THOSE BYTES CONTAIN A TERMINATING NULL BYTE!
+static size_t _DG_strnlen_nextWordOnly(const char* s, const char* cur, size_t n)
+{
+
+	if(  *cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+
+  #ifdef DG_MISC_IS_64BIT // 4 more bytes per uintptr_t
+	if(*++cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+	if(*++cur == '\0')  return cur - s;
+  #endif // 64bit
+
+	DG_MISC_ASSERT( 0, "_DG_strnlen_nextWordOnly() should only be called if the next word actually contains a '\0' !" );
+	return n;
+}
+
+
 DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 {
 	DG_MISC_ASSERT(s != NULL, "Don't call DG_strnlen() with NULL!");
 
 #if (defined(__GLIBC__) || defined(__APPLE__)) && !defined(DG_MISC_NO_GNU_SOURCE)
+
 	// glibc has a very optimized version of this, use that instead
 	// apple also seems to have optimized ASM code, see
 	// http://www.opensource.apple.com/source/Libc/Libc-1044.1.2/x86_64/string/
@@ -664,7 +688,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 	// at least microsoft and freebsd seem to use a naive strnlen() without
 	// any tricks which is usually slower than this
 
-	// uses a trick from https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
+	// uses a magic trick from https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
 	// (and probably in 1000 other places) to decide whether sizeof(uintptr_t) bytes
 	// contain a '\0' or not. without branching, with relatively few instructions
 	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
@@ -681,56 +705,152 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 	#error "no 32 or 64bit platform?!"
 #endif
 
-	// let's get the empty buffer special case out of the way...
-	if(n==0) return 0;
+	// size of a native "word" of this platform
+	static const size_t WordSize = sizeof(uintptr_t);
 
-	// s aligned to the next word boundary
-	uintptr_t s_alnI = ((uintptr_t)s + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t)-1);
-	const uintptr_t* s_aln = (uintptr_t *)s_alnI;
-	const char* s_last = (const char*)(~((uintptr_t)0)); // highest possible address (all bits are 1)
-
-	if(n < (uintptr_t)(s_last - s))
+	// the magic trick requires at least WordSize bytes
+	// if we get less, check those bytes directly without the magic trick
+	if(n < WordSize)
 	{
-		// adding n won't overflow, so it's safe to do that now.
-		// otherwise s_last will remain to be the highest possible address
-		// Note: this is a bit cryptic, but according to http://lwn.net/Articles/278137/
-		// a check like "if(s+n-1 < s)" might be optimized away by many compilers
+		const char* cur=s;
 		
-		// now it points to the last but one byte in s (if no byte up to and
-		// including this one is '\0', we'll return n)
-		s_last = s+n-1;
+		// the following basically unrolls this simple loop:
+		// for(size_t i=0; i<n; ++i, ++cur)
+		//     if(*cur == '\0') return cur-s;
+		// and indeed seems to be faster
+
+		if(n == 0 || *cur == '\0')
+			return 0;
+
+		switch(n) {
+	#ifdef DG_MISC_IS_64BIT // 64bit has 8 bytes, so check 4 more
+			case 7: if(*++cur == '\0') return cur-s;
+			        // else fall-through to check next char
+			case 6: if(*++cur == '\0') return cur-s;
+			case 5: if(*++cur == '\0') return cur-s;
+			case 4: if(*++cur == '\0') return cur-s;
+	#endif // DG_MISC_IS_64BIT
+			case 3: if(*++cur == '\0') return cur-s;
+			case 2: if(*++cur == '\0') return cur-s;
+			// no case 1:, because s[0] has already been checked in the `if` above
+		}
+		return n;
 	}
 
-	// check bytes between s and s_aln
-	const char* cur = s;
-	for( ; cur < (const char*)s_aln; ++cur)
-	{
-		if(*cur == '\0')
-		{
-			if(cur > s_last) return n;
+	const char* s_end = s + n; // pointer to byte *after* last valid byte
 
-			return cur - s;
+#ifdef DG_MISC_STRLEN_UNALIGNED
+	// on some machines it's fastest to just do unaligned WordSize-d reads
+	// for the whole string (or at least as far as possible without over-reading)
+
+	const char* cur = s;
+	// the last address where we can do a WordSize-d read without "over-reading"
+	// (i.e. without reading behind the end of the buffer)
+	const char* safeLast = s_end - WordSize;
+	for( ; cur <= safeLast; cur += WordSize )
+	{
+		// do the magic trick on WordSize bytes at a time
+		// (as the bytes may be unaligned, use memcpy() to prevent an
+		//  unaligned load into the uintptr_t, in case the platform
+		//  doesn't support that. if it does, the compiler should convert
+		//  the memcpy() to such a load, at least when using optimizations)
+
+		uintptr_t tmp;
+		memcpy(&tmp, cur, WordSize);
+		// for some reason, on RPi4 32bit with really short strings the
+		// following generates faster code than memcpy() (with GCC 10.2),
+		// even though memcpy() isn't called either way
+		//tmp = *(uintptr_t*)cur;
+		uintptr_t m1 = tmp - magic1;
+		uintptr_t m2 = (~tmp) & magic2;
+		if(m1 & m2)
+		{
+			return _DG_strnlen_nextWordOnly(s, cur, n);
 		}
 	}
 
-	for( ; (const char*)s_aln <= s_last; ++s_aln)
+#else // ! DG_MISC_STRLEN_UNALIGNED
+	// on other machines it's faster to do aligned WordSize-d reads
+
+	// bitmask to align a pointer address to a multiple of WordSize
+	static const uintptr_t WordAlignMask = ~(uintptr_t)(WordSize-1);
+
+	// s aligned to the next word boundary
+	uintptr_t s_alnI = ((uintptr_t)s + WordSize - 1) & WordAlignMask;
+	const uintptr_t* s_aln = (const uintptr_t *)s_alnI;
+
+	// check bytes between s and s_aln (if any)
+	if(s != (const char*)s_aln)
 	{
-		// the aforementioned trick
+		// first try the magic trick for the first unaligned bytes ..
+		// (as they're unaligned, use memcpy() to prevent an unaligned read,
+		//  in case the platform doesn't support that. if it does, the
+		//  compiler should convert the memcpy() to such a read,
+		//  at least when using optimizations)
+		uintptr_t tmp;
+		memcpy(&tmp, s, WordSize);
+		uintptr_t m1 = tmp - magic1;
+		uintptr_t m2 = (~tmp) & magic2;
+		if(m1 & m2)
+		{
+			return _DG_strnlen_nextWordOnly(s, s, n);
+		}
+	}
+
+	// in the main loop we read WordSize bytes at a time, so we may need to stop
+	// at least WordSize bytes before s_end to prevent reading past the end of the buffer
+	const uintptr_t* s_endAln = (const uintptr_t*)((uintptr_t)s_end & WordAlignMask);
+
+	// .. then use the trick to test WordSize bytes at a time,
+	// always aligned to WordSize bytes so we can use the chars
+	// casted to uintptr_t instead of copying first
+	for( ; s_aln != s_endAln; ++s_aln)
+	{
+		// again, the magic trick
 		uintptr_t m1 = *s_aln - magic1;
 		uintptr_t m2 = (~(*s_aln)) & magic2;
 
 		if(m1 & m2)
 		{
-			cur = (const char*)s_aln;
-			size_t i;
-			for(i=0; i<sizeof(uintptr_t); ++i)
-			{
-				if(cur[i] == '\0')
-				{
-					size_t ret = cur + i - s;
-					return (ret < n) ? ret : n;
-				}
-			}
+			return _DG_strnlen_nextWordOnly(s, (const char*)s_aln, n);
+		}
+	}
+
+	// now s_aln is at s_endAln, behind the last (full) aligned WordSize-d chunk
+	// of the string - so we only need to check the few last bytes from that point on
+
+	const char* cur = (const char*)s_endAln;
+
+#endif // DG_MISC_STRLEN_UNALIGNED
+
+	// if we got this far then I think it's very likely that one of the last bytes
+	// is \0, so check them directly instead of using the magic trick
+	// (which in case of a match needs to check them again anyway)
+	// the underlying assumption is that most of the time when calling strnlen()
+	// the string indeed is \0 terminated within the first n bytes
+
+	size_t remaining = s_end - cur; // should be < WordSize
+	if(remaining != 0)
+	{
+		DG_MISC_ASSERT(remaining < WordSize, "expected to have less that wordsize (sizeof(uintptr_t)) chars left");
+
+		// same loop-unrolling trick as in if(n < WordSize) above
+		if(*cur == '\0')
+			return cur - s;
+
+		switch(remaining) {
+		#ifdef DG_MISC_IS_64BIT // 64bit has 8 bytes, so check 4 more
+			case 7: if(*++cur == '\0') return cur-s;
+			        // else fall through to check next byte
+			case 6: if(*++cur == '\0') return cur-s;
+			case 5: if(*++cur == '\0') return cur-s;
+			case 4: if(*++cur == '\0') return cur-s;
+		#endif
+			case 3: if(*++cur == '\0') return cur-s;
+			case 2: if(*++cur == '\0') return cur-s;
+			// no case 1 - we already checked one char in the if above
+
+			// if not returned yet, we'll default to return n below
 		}
 	}
 
@@ -787,13 +907,28 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 
 DG_MISC_DEF size_t DG_strlen(const char* s)
 {
+#ifdef DG_MISC_STRLEN_OVERREAD
 	// glibc's strlen() is *fucking* fast (with custom ASM), Apple also has custom ASM,
 	// freebsd uses the same trick as DG_strnlen() and is slightly faster...
-	// but Microsoft's strlen() is slower than DG_strnlen(), so use that for Windows.
+	// but Microsoft's strlen() (in some version I tested years ago)
+	// was slower than DG_strnlen(), so use this for Windows before VS2015..
 	// I don't feel like duplicating all that strnlen() code, so let's just pass
-	// the max. possible length (until the highest address a pointer can store)
-	static const char* maxaddr = (const char*)(~((uintptr_t)0));
-	return DG_strnlen(s, maxaddr - s);
+	// the max. possible length, until almost the highest address a pointer can store.
+	// Only "almost" to avoid ugly integer wrapping when DG_strnlen() does something
+	// like for(const char* cur=s; cur<s+n; cur += sizeof(uintptr_t))
+
+	// the following might read up to sizeof(uintptr_t)-1 bytes past the end of the buffer
+	// (to read a full aligned uintptr_t). that *should* not hurt usually, but ASan hates it
+	static const uintptr_t maxaddr = ~((uintptr_t)0);
+	return DG_strnlen(s, maxaddr - (uintptr_t)s - sizeof(uintptr_t));
+#else
+	// if we're not allowed to read past the end of the buffer,
+	// there's no hope for optimizations - do the naive loop.
+	const char* cur = s;
+	while(*cur != '\0')
+		++cur;
+	return cur - s;
+#endif
 }
 
 #endif // DG_strlen
