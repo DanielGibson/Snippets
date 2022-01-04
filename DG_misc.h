@@ -204,10 +204,34 @@ extern "C" {
 // DG_MISC_NO_GNU_SOURCE can be used to enforce usage of our own memrchr() and memmem() functions
 // on Linux - mostly relevant for testing (they should be faster than my implementation)
 
-#ifndef DG_MISC_ASSERT
-#define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
-#include <assert.h>
-#endif
+#if !defined(DG_MISC_ASSERT) || !defined(DG_MISC_STATIC_ASSERT)
+  #include <assert.h>
+
+  #ifndef DG_MISC_ASSERT
+    #define DG_MISC_ASSERT(cond, msg) assert( (cond) && (msg) )
+  #endif
+
+  #ifndef DG_MISC_STATIC_ASSERT
+
+    // DG_MISC_ASSERT( condition, name )
+    // note that for compatibility with C before C11 and C++ before C++11,
+    // the second argument is NOT A STRING but something that can be part of a typename
+    // like x_must_be_4
+
+    // in C11, static_assert is a macro in <assert.h> that maps to _Static_assert
+    // in C++11 and newer, it's a language keyword
+    #if defined(static_assert) || (defined(__cplusplus) && (__cplusplus >= 201103L))
+      // we have compiler support and name is turned into a string literal
+      #define DG_MISC_STATIC_ASSERT(cond, name)  static_assert( (cond), #name )
+    #else // no compiler support for static_assert, use a hack..
+      // if cond is false, the typedef will define an array of negative length
+      // which will cause a compiler error
+      #define DG_MISC_STATIC_ASSERT(cond, name) \
+              typedef char _DG_MISC_ASSERT_FAILED_ ## name [ (cond) ? 1 : -1 ]
+    #endif
+  #endif // ! defined DG_MISC_STATIC_ASSERT
+
+#endif // !defined(DG_MISC_ASSERT) || !defined(DG_MISC_STATIC_ASSERT)
 
 #include <string.h>
 
@@ -623,7 +647,8 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 	// (and probably in 1000 other places) to decide whether sizeof(uintptr_t) bytes
 	// contain a '\0' or not. without branching, with relatively few instructions
 	// that trick only works (at least in the way I've implemented it) with 32bit and 64bit systems
-	DG_MISC_ASSERT((sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8), "DG_strnlen() only works for 32bit and 64bit systems!");
+	DG_MISC_STATIC_ASSERT(sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8, DG_strnlen_only_supports_32_and_64_bit_systems);
+
 	// these magic numbers are used for the trick:
 #if defined(_MSC_VER) && !defined(_WIN64)
 	// some older MSVC versions (tested 6.0) don't support ULL suffixes.. not sure
