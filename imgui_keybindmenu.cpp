@@ -139,25 +139,25 @@ static bool hadKeyDownEvent = false;
 // for special case in IsCancelKeyPressed()
 static bool gamepadStartPressed = false;
 
-static idStr warningTooltipText;
-static double warningTooltipStartTime = -100.0;
-static ImVec2 warningTooltipStartPos;
+static idStr warningOverlayText;
+static double warningOverlayStartTime = -100.0;
+static ImVec2 warningOverlayStartPos;
 
 static float blaScale = 1.0f;
 
 static void UpdateWarningOverlay()
 {
 	double timeNow = ImGui::GetTime();
-	if ( timeNow - warningTooltipStartTime > 4.0f ) {
+	if ( timeNow - warningOverlayStartTime > 4.0f ) {
 		return;
 	}
 
 	// also hide if a key was pressed or maybe even if the mouse was moved (too much)
-	ImVec2 mdv = ImGui::GetMousePos() - warningTooltipStartPos; // Mouse Delta Vector
+	ImVec2 mdv = ImGui::GetMousePos() - warningOverlayStartPos; // Mouse Delta Vector
 	float mouseDelta = sqrtf( mdv.x * mdv.x + mdv.y * mdv.y );
 	const float fontSize = ImGui::GetFontSize();
 	if ( mouseDelta > fontSize * 4.0f || hadKeyDownEvent ) {
-		warningTooltipStartTime = -100.0f;
+		warningOverlayStartTime = -100.0f;
 		return;
 	}
 
@@ -197,7 +197,7 @@ static void UpdateWarningOverlay()
 	drawList->AddEllipseFilled( points[5], ImVec2(dotRadius, dotRadius), color, 0, 6 );
 
 	ImGui::Indent( 40.0f * iconScale );
-	ImGui::TextUnformatted( warningTooltipText.c_str() );
+	ImGui::TextUnformatted( warningOverlayText.c_str() );
 
 	ImGui::End();
 
@@ -207,9 +207,9 @@ static void UpdateWarningOverlay()
 
 static void ShowWarningOverlay( const char* text )
 {
-	warningTooltipText = text;
-	warningTooltipStartTime = ImGui::GetTime();
-	warningTooltipStartPos = ImGui::GetMousePos();
+	warningOverlayText = text;
+	warningOverlayStartTime = ImGui::GetTime();
+	warningOverlayStartPos = ImGui::GetMousePos();
 }
 
 
