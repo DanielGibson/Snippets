@@ -917,6 +917,28 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * 1.0           800
  */
 
+/* Value of __STDC_VERSION__ macro for different C versions
+ * (https://en.cppreference.com/w/c/preprocessor/replace#Predefined_macros)
+ *
+ * C23: 202311L
+ * C17: 201710L
+ * C11: 201112L
+ * C99: 199901L
+ * C95: 199409L
+ * (C89 presumably doesn't have this defined)
+ */
+
+/* Value of __cplusplus macro for different C++ versions
+ * (https://en.cppreference.com/w/cpp/preprocessor/replace#Predefined_macros)
+ *
+ * C++23:    202302L
+ * C++20:    202002L
+ * C++17:    201703L
+ * C++14:    201402L
+ * C++11:    201103L
+ * C++98/03: 199711L
+ */
+
 #ifndef DG_strlen // if it's not just a #define for regular strlen
 
 DG_MISC_DEF size_t DG_strlen(const char* s)
