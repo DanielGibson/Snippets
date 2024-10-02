@@ -863,12 +863,14 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 /* value of _MSC_VER macro for different MSVC versions,
  * so I don't have to google that over and over again
  * (from http://sourceforge.net/p/predef/wiki/Compilers/#microsoft-visual-c
- *  and https://learn.microsoft.com/en-us/cpp/overview/compiler-versions?view=msvc-170)
+ *  and https://learn.microsoft.com/en-us/cpp/overview/compiler-versions?view=msvc-170
+ *  and https://github.com/microsoft/STL/wiki/Macro-_MSVC_STL_UPDATE)
  * Note that _MSC_FULL_VER also exists (from Visual C++ 6.0 SP6 on?), if even finer
  * granularity is needed (likely only to work around very specific compiler bugs).
  *
  * Visual C++    _MSC_VER
  *
+ * 17.11 (2022)  1941
  * 17.10 (2022)  1940
  * 17.9  (2022)  1939
  * 17.8  (2022)  1938
@@ -930,6 +932,8 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
 
 /* Value of __cplusplus macro for different C++ versions
  * (https://en.cppreference.com/w/cpp/preprocessor/replace#Predefined_macros)
+ * ! VisualC++ needs _MSVC_LANG instead, unless the /Zc:__cplusplus compiler option is set:
+ * ! https://learn.microsoft.com/en-us/cpp/build/reference/zc-cplusplus
  *
  * C++23:    202302L
  * C++20:    202002L
