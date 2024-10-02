@@ -11,8 +11,8 @@
  * but I added some hacks in the SDL2-specific code (gamepadStartPressed and hadKeyDownEvent)
  * that must be ported for different input backends.
  *
- * To build, you also need the following source files from Dear ImGui 1.90.6 (other versions might
- * work, but this has been developed for and tested with 1.90.6):
+ * To build, you also need the following source files from Dear ImGui 1.90.6 or 1.91.2 (other versions
+ * might work, but those have been tested):
  *  imgui.cpp imgui_demo.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp
  *  backends/imgui_impl_sdl2.cpp backends/imgui_impl_opengl2.cpp
  * Furthermore you need to add the imgui root directory (that contains imgui.h) and its backends/
@@ -1483,6 +1483,11 @@ int main(int, char**)
                 done = true;
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
+        }
+        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
+        {
+            SDL_Delay(10);
+            continue;
         }
 
         // Start the Dear ImGui frame
