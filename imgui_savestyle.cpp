@@ -4,7 +4,7 @@
  *
  * Hosted at https://github.com/DanielGibson/Snippets/
  *
- * Written for/tested with Dear ImGui v1.90.8 (incl. Docking Branch)
+ * Written for/tested with Dear ImGui v1.92.2/3 (incl. Docking Branch)
  *
  * If anything changes in struct ImGuiStyle or enum ImGuiCol_, this code should detect it
  * during compilation and give (hopefully) helpful errors with static_assert() (always check and
