@@ -870,6 +870,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  *
  * Visual C++    _MSC_VER
  *
+ * 17.12 (2022)  1942
  * 17.11 (2022)  1941
  * 17.10 (2022)  1940
  * 17.9  (2022)  1939
@@ -903,6 +904,10 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * 15.0 (2017)   1910 // Visual Studio 2017 RTW
  *
  * 14.0 (2015)   1900
+ *
+ * Note: from VS 2015 on (*at least* up to VS2022) the compiler redistributable runtimes are
+ *       backwards compatible (e.g. the one for VS2022 also works for binaries created with VS2015)
+ *       see https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
  *
  * 12.0 (2013)   1800
  * 11.0 (2012)   1700
