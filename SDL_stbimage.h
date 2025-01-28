@@ -73,8 +73,8 @@
 #endif // 0 (usage example)
 
 
-#ifndef SDL__STBIMAGE_H
-#define SDL__STBIMAGE_H
+#ifndef _SDL_STBIMAGE_H
+#define _SDL_STBIMAGE_H
 
 // for SDL3, you either can #define SDL_STBIMG_SDL3 yourself
 // OR #include <SDL3/SDL.h> yourself before this header
@@ -265,7 +265,7 @@ SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer,
 } // extern "C"
 #endif
 
-#endif // SDL__STBIMAGE_H
+#endif // _SDL_STBIMAGE_H
 
 
 // ############# Below: Implementation ###############
@@ -289,9 +289,9 @@ typedef struct {
 	int w;
 	int h;
 	int format; // 3: RGB, 4: RGBA
-} STBIMG__image;
+} _STBIMG_image;
 
-static SDL_Surface* STBIMG__CreateSurfaceImpl(STBIMG__image img, int freeWithSurface)
+static SDL_Surface* _STBIMG_CreateSurfaceImpl(_STBIMG_image img, int freeWithSurface)
 {
 	SDL_Surface* surf = NULL;
 	
@@ -351,7 +351,7 @@ static SDL_Surface* STBIMG__CreateSurfaceImpl(STBIMG__image img, int freeWithSur
 
 SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, int length)
 {
-	STBIMG__image img = {0};
+	_STBIMG_image img = {0};
 	int bppToUse = 0;
 	int inforet = 0;
 	SDL_Surface* ret = NULL;
@@ -385,7 +385,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 	}
 	img.format = bppToUse;
 
-	ret = STBIMG__CreateSurfaceImpl(img, 1);
+	ret = _STBIMG_CreateSurfaceImpl(img, 1);
 
 	if(ret == NULL)
 	{
@@ -399,7 +399,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 
 
 // fill 'data' with 'size' bytes.  return number of bytes actually read
-static int STBIMG__io_read(void* user, char* data, int size)
+static int _STBIMG_io_read(void* user, char* data, int size)
 {
 	STBIMG_stbio_RWops* io = (STBIMG_stbio_RWops*)user;
 
@@ -413,7 +413,7 @@ static int STBIMG__io_read(void* user, char* data, int size)
 }
 
 // skip the next 'n' bytes, or 'unget' the last -n bytes if negative
-static void STBIMG__io_skip(void* user, int n)
+static void _STBIMG_io_skip(void* user, int n)
 {
 	STBIMG_stbio_RWops* io = (STBIMG_stbio_RWops*)user;
 
@@ -425,7 +425,7 @@ static void STBIMG__io_skip(void* user, int n)
 }
 
 // returns nonzero if we are at end of file/data
-static int STBIMG__io_eof(void* user)
+static int _STBIMG_io_eof(void* user)
 {
 	STBIMG_stbio_RWops* io = (STBIMG_stbio_RWops*)user;
 	return io->atEOF;
@@ -451,9 +451,9 @@ SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RW
 
 	out->src = src;
 	out->atEOF = 0;
-	out->stb_cbs.read = STBIMG__io_read;
-	out->stb_cbs.skip = STBIMG__io_skip;
-	out->stb_cbs.eof  = STBIMG__io_eof;
+	out->stb_cbs.read = _STBIMG_io_read;
+	out->stb_cbs.skip = _STBIMG_io_skip;
+	out->stb_cbs.eof  = _STBIMG_io_eof;
 
 	return true;
 }
@@ -461,7 +461,7 @@ SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RW
 
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, bool freesrc)
 {
-	STBIMG__image img = {0};
+	_STBIMG_image img = {0};
 	int bppToUse = 0;
 	int inforet = 0;
 	SDL_Surface* ret = NULL;
@@ -516,7 +516,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, bool freesrc)
 	}
 	img.format = bppToUse;
 
-	ret = STBIMG__CreateSurfaceImpl(img, 1);
+	ret = _STBIMG_CreateSurfaceImpl(img, 1);
 
 	if(ret == NULL)
 	{
@@ -608,7 +608,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load(const char* file)
 
 SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int width, int height, int bytesPerPixel, bool freeWithSurface)
 {
-	STBIMG__image img;
+	_STBIMG_image img;
 
 	if(pixelData == NULL)
 	{
@@ -631,11 +631,11 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int w
 	img.h = height;
 	img.format = bytesPerPixel;
 
-	return STBIMG__CreateSurfaceImpl(img, freeWithSurface);
+	return _STBIMG_CreateSurfaceImpl(img, freeWithSurface);
 }
 
 #if SDL_MAJOR_VERSION > 1
-static SDL_Texture* STBIMG__SurfToTex(SDL_Renderer* renderer, SDL_Surface* surf)
+static SDL_Texture* _STBIMG_SurfToTex(SDL_Renderer* renderer, SDL_Surface* surf)
 {
 	SDL_Texture* ret = NULL;
 	if(surf != NULL)
@@ -653,19 +653,19 @@ static SDL_Texture* STBIMG__SurfToTex(SDL_Renderer* renderer, SDL_Surface* surf)
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture(SDL_Renderer* renderer, const char* file)
 {
-	return STBIMG__SurfToTex(renderer, STBIMG_Load(file));
+	return _STBIMG_SurfToTex(renderer, STBIMG_Load(file));
 }
 
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTextureFromMemory(SDL_Renderer *renderer, const unsigned char* buffer, int length)
 {
-	return STBIMG__SurfToTex(renderer, STBIMG_LoadFromMemory(buffer, length));
+	return _STBIMG_SurfToTex(renderer, STBIMG_LoadFromMemory(buffer, length));
 }
 
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc)
 {
-	return STBIMG__SurfToTex(renderer, STBIMG_Load_RW(src, freesrc));
+	return _STBIMG_SurfToTex(renderer, STBIMG_Load_RW(src, freesrc));
 }
 
 SDL_STBIMG_DEF SDL_Texture*
@@ -673,13 +673,13 @@ STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
                      int width, int height, int bytesPerPixel)
 {
 	SDL_Surface* surf = STBIMG_CreateSurface((unsigned char*)pixelData, width, height, bytesPerPixel, SDL_FALSE);
-	return STBIMG__SurfToTex(renderer, surf);
+	return _STBIMG_SurfToTex(renderer, surf);
 }
 
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc)
 {
-	return STBIMG__SurfToTex(renderer, STBIMG_Load_RW_noSeek(src, freesrc));
+	return _STBIMG_SurfToTex(renderer, STBIMG_Load_RW_noSeek(src, freesrc));
 }
 #endif // SDL_MAJOR_VERSION > 1
 
