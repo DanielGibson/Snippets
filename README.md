@@ -81,6 +81,12 @@ int DG_vsnprintf(char *dst, size_t size, const char *format, va_list ap);
 
 ## List of functions in [**SDL_stbimage.h**](/SDL_stbimage.h)
 
+**NOTE:** When using SDL_stbimage.h with *SDL3*, you must `#include <SDL3/SDL.h>`
+or `#define SDL_STBIMG_SDL3` *before* including `SDL_stbimage.h`.  
+Furthermore note that the functions listed as taking `SDL_RWops` arguments instead take `SDL_IOStream`
+and have `_IO` instead of `_RW` in their names (but defines for backwards-compatibility with the
+old function names are provided).
+
 ```c
 // loads the image file at the given path into a RGB(A) SDL_Surface
 // Returns NULL on error, use SDL_GetError() to get more information.
@@ -91,9 +97,9 @@ SDL_Surface* STBIMG_Load(const char* file);
 SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, int length);
 
 // loads an image file into a RGB(A) SDL_Surface from a seekable SDL_RWops (src)
-// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// if you set freesrc to true, SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, int freesrc);
+SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, bool freesrc);
 
 
 //   If you're gonna use SDL_Renderer, the following convenience functions
@@ -109,9 +115,9 @@ SDL_Texture*
 STBIMG_LoadTextureFromMemory(SDL_Renderer* renderer, const unsigned char* buffer, int length);
 
 // loads an image file into a RGB(A) SDL_Texture from a seekable SDL_RWops (src)
-// if you set freesrc to non-zero, SDL_RWclose(src) will be executed after reading.
+// if you set freesrc to true, SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-SDL_Texture* STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int freesrc);
+SDL_Texture* STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc);
 
 
 
@@ -119,13 +125,13 @@ SDL_Texture* STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, int f
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)
 // ! It must be byte-wise 24bit RGB ("888", bytesPerPixel=3) !
 // !  or byte-wise 32bit RGBA ("8888", bytesPerPixel=4) data !
-// If freeWithSurface is SDL_TRUE, SDL_FreeSurface() will free the pixelData
+// If freeWithSurface is true, SDL_FreeSurface() will free the pixelData
 //  you passed with SDL_free() - NOTE that you should only do that if pixelData
 //  was allocated with SDL_malloc(), SDL_calloc() or SDL_realloc()!
 // Returns NULL on error (in that case pixelData won't be freed!),
 //  use SDL_GetError() to get more information.
 SDL_Surface* STBIMG_CreateSurface(unsigned char* pixelData, int width, int height,
-                                  int bytesPerPixel, SDL_bool freeWithSurface);
+                                  int bytesPerPixel, bool freeWithSurface);
 
 // Creates an SDL_Texture* using the raw RGB(A) pixelData with given width/height
 // (this doesn't use stb_image and is just a simple SDL_CreateSurfaceFrom()-wrapper)

@@ -23,6 +23,9 @@
  *   files to use it there. (See also below this comment for an usage example)
  *   This header implicitly #includes <SDL.h> and "stb_image.h".
  *
+ *   NOTE: When using SDL3, either #include <SDL3/SDL.h> before this header,
+ *         or #define SDL_STBIMG_SDL3 before including it.
+ *
  *   You can #define SDL_STBIMG_DEF before including this header if you want to
  *   prepend anything to the function signatures (like "static", "inline",
  *   "__declspec(dllexport)", ...)
