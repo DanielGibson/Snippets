@@ -31,6 +31,7 @@
  *   By default, this deactivates stb_image's load from file functions via
  *   #define STBI_NO_STDIO, as they use stdio.h  and that adds a dependency to the
  *   CRT on windows and with SDL you're better off using SDL_RWops, incl. SDL_RWFromFile()
+ *   (or the SDL3 equivalents: SDL_IOStream, SDL_IOFromFile())
  *   If you wanna use stbi_load(), stbi_info(), stbi_load_from_file() etc anyway, do
  *     #define SDL_STBIMG_ALLOW_STDIO
  *   before including this header.
@@ -68,7 +69,7 @@
 
     // ... do something with surf ...
 
-    SDL_FreeSurface(surf);
+    SDL_FreeSurface(surf); // or SDL_DestroySurface(surf); for SDL3
   }
 #endif // 0 (usage example)
 
@@ -131,7 +132,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 // if you set freesrc to true, SDL_CloseIO(src)/SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
 #ifdef SDL_STBIMG_SDL3
-SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_IOStream* src, bool freesrc);
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO(SDL_IOStream* src, bool freesrc);
 #else // SDL2 or SDL1.2
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, bool freesrc);
 #endif
@@ -164,7 +165,7 @@ STBIMG_LoadTextureFromMemory(SDL_Renderer* renderer, const unsigned char* buffer
 // Returns NULL on error, use SDL_GetError() to get more information.
 #ifdef SDL_STBIMG_SDL3
 SDL_STBIMG_DEF SDL_Texture*
-STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
+STBIMG_LoadTexture_IO(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
 #else // SDL2
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_RW(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc);
@@ -199,7 +200,7 @@ typedef struct {
 //       it by seeking back to its initial position and resetting out->atEOF to 0
 //       inbetween the uses!
 #ifdef SDL_STBIMG_SDL3
-SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_IOStream* src, STBIMG_stbio_RWops* out);
+SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_IO(SDL_IOStream* src, STBIMG_stbio_RWops* out);
 #else
 SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RWops* out);
 #endif
@@ -248,21 +249,31 @@ SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RW
 // if you set freesrc to true, SDL_RWclose(src)/SDL_CloseIO(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
 #ifdef SDL_STBIMG_SDL3
-SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_IOStream* src, bool freesrc);
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO_noSeek(SDL_IOStream* src, bool freesrc);
 #else
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, bool freesrc);
 #endif
 
 // the same for textures (you should probably not use this one, either..)
 #ifdef SDL_STBIMG_SDL3
-SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
+SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_IO_noSeek(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
 #else
 SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc);
 #endif
+
 #endif // SDL_MAJOR_VERSION > 1
 
 #ifdef __cplusplus
 } // extern "C"
+#endif
+
+// provide backwards-compatibility for the function names
+#ifdef SDL_STBIMG_SDL3
+  #define STBIMG_Load_RW STBIMG_Load_IO
+  #define STBIMG_LoadTexture_RW STBIMG_LoadTexture_IO
+  #define STBIMG_stbi_callback_from_RW STBIMG_stbi_callback_from_IO
+  #define STBIMG_Load_RW_noSeek STBIMG_Load_IO_noSeek
+  #define STBIMG_LoadTexture_RW_noSeek STBIMG_LoadTexture_IO_noSeek
 #endif
 
 #endif // _SDL_STBIMAGE_H
@@ -473,8 +484,11 @@ static int _STBIMG_io_eof(void* user)
 	return io->atEOF;
 }
 
-
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_IO(_STBIMG_RWops* src, STBIMG_stbio_RWops* out)
+#else
 SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(_STBIMG_RWops* src, STBIMG_stbio_RWops* out)
+#endif
 {
 	if(out == NULL)
 	{
@@ -500,8 +514,11 @@ SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(_STBIMG_RWops* src, STBIMG_stbi
 	return true;
 }
 
-
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO(_STBIMG_RWops* src, bool freesrc)
+#else
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(_STBIMG_RWops* src, bool freesrc)
+#endif
 {
 	_STBIMG_image img = {0};
 	int bppToUse = 0;
@@ -525,7 +542,11 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(_STBIMG_RWops* src, bool freesrc)
 		goto end;
 	}
 
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+	if(!STBIMG_stbi_callback_from_IO(src, &cbData))
+#else
 	if(!STBIMG_stbi_callback_from_RW(src, &cbData))
+#endif
 	{
 		goto end;
 	}
@@ -584,7 +605,12 @@ end:
 }
 
 #if SDL_MAJOR_VERSION > 1
+
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO_noSeek(_STBIMG_RWops* src, bool freesrc)
+#else
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(_STBIMG_RWops* src, bool freesrc)
+#endif
 {
 	unsigned char* buf = NULL;
 	Sint64 fileSize = 0, bytesRead=0;
@@ -650,7 +676,11 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_Load(const char* file)
 {
 	_STBIMG_RWops* src = _STBIMG_RWFromFile(file, "rb");
 	if(src == NULL) return NULL;
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+	return STBIMG_Load_IO(src, 1);
+#else
 	return STBIMG_Load_RW(src, 1);
+#endif
 }
 
 
@@ -715,11 +745,19 @@ STBIMG_LoadTextureFromMemory(SDL_Renderer *renderer, const unsigned char* buffer
 	return _STBIMG_SurfToTex(renderer, STBIMG_LoadFromMemory(buffer, length));
 }
 
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture_IO(SDL_Renderer* renderer, _STBIMG_RWops* src, bool freesrc)
+{
+	return _STBIMG_SurfToTex(renderer, STBIMG_Load_IO(src, freesrc));
+}
+#else
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_RW(SDL_Renderer* renderer, _STBIMG_RWops* src, bool freesrc)
 {
 	return _STBIMG_SurfToTex(renderer, STBIMG_Load_RW(src, freesrc));
 }
+#endif
 
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
@@ -729,11 +767,20 @@ STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
 	return _STBIMG_SurfToTex(renderer, surf);
 }
 
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+SDL_STBIMG_DEF SDL_Texture*
+STBIMG_LoadTexture_IO_noSeek(SDL_Renderer* renderer, _STBIMG_RWops* src, bool freesrc)
+{
+	return _STBIMG_SurfToTex(renderer, STBIMG_Load_IO_noSeek(src, freesrc));
+}
+#else
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, _STBIMG_RWops* src, bool freesrc)
 {
 	return _STBIMG_SurfToTex(renderer, STBIMG_Load_RW_noSeek(src, freesrc));
 }
+#endif
+
 #endif // SDL_MAJOR_VERSION > 1
 
 #endif // SDL_STBIMAGE_IMPLEMENTATION
