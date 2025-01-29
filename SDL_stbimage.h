@@ -83,27 +83,24 @@
 // for SDL3, you either can #define SDL_STBIMG_SDL3 yourself
 // OR #include <SDL3/SDL.h> yourself before this header
 // (the following lines handle for the second case)
-#if defined(SDL_VERSION_ATLEAST)
-  #if SDL_VERSION_ATLEAST(3, 0, 0))
-    #define SDL_STBIMG_SDL3
+#ifndef SDL_VERSION_ATLEAST
+  #ifdef SDL_STBIMG_SDL3
+    // in SDL3 this is the official way to include SDL.h
+    #include <SDL3/SDL.h>
+  #else // SDL2 and SDL1.2
+    // if you really think you need <SDL2/SDL.h> here instead.. feel free to change it,
+    // but the cool kids have path/to/include/SDL2/ in their compilers include path.
+    // (meaning, that's how was supposed to be done for SDL2 and what sdl2-config supports)
+    #include <SDL.h>
   #endif
-#endif
+// else if it *is* defined, SDL.h was already included before including this header.
+// now, after including the headers, it definitely is available.
+#endif // SDL_VERSION_ATLEAST not defined
 
-#if defined(SDL_STBIMG_SDL3)
-  // in SDL3 this is the official way to include SDL.h
-  #include <SDL3/SDL.h>
-#else // SDL2 and SDL1.2
-  // if you really think you need <SDL2/SDL.h> here instead.. feel free to change it,
-  // but the cool kids have path/to/include/SDL2/ in their compilers include path.
-  // (meaning, that's how was supposed to be done for SDL2 and what sdl2-config supports)
-  #include <SDL.h>
-
-  // allow using bool. In C++ it's a builtin type
+#if !SDL_VERSION_ATLEAST(3, 0, 0) && !defined(__cpluscplus)
+  // allow using bool. In C++ it's a builtin type,
   // in SDL3 SDL_stdinc.h (through SDL.h) makes sure it's available
-  #ifndef __cpluscplus
-    #include <stdbool.h>
-  #endif
-
+  #include <stdbool.h>
 #endif
 
 #ifndef SDL_STBIMG_ALLOW_STDIO
@@ -134,7 +131,7 @@ SDL_STBIMG_DEF SDL_Surface* STBIMG_LoadFromMemory(const unsigned char* buffer, i
 // loads an image file into a RGB(A) SDL_Surface from a seekable SDL_IOStream/SDL_RWops (src)
 // if you set freesrc to true, SDL_CloseIO(src)/SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO(SDL_IOStream* src, bool freesrc);
 #else // SDL2 or SDL1.2
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW(SDL_RWops* src, bool freesrc);
@@ -166,7 +163,7 @@ STBIMG_LoadTextureFromMemory(SDL_Renderer* renderer, const unsigned char* buffer
 // loads an image file into a RGB(A) SDL_Texture from a seekable SDL_IOStream/SDL_RWops (src)
 // if you set freesrc to true, SDL_CloseIO(src)/SDL_RWclose(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 SDL_STBIMG_DEF SDL_Texture*
 STBIMG_LoadTexture_IO(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
 #else // SDL2
@@ -186,7 +183,7 @@ STBIMG_CreateTexture(SDL_Renderer* renderer, const unsigned char* pixelData,
 
 
 typedef struct {
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 	SDL_IOStream* src;
 #else
 	SDL_RWops* src;
@@ -202,7 +199,7 @@ typedef struct {
 // NOTE: If you want to use src twice (e.g. for info and load), remember to rewind
 //       it by seeking back to its initial position and resetting out->atEOF to 0
 //       inbetween the uses!
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_IO(SDL_IOStream* src, STBIMG_stbio_RWops* out);
 #else
 SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RWops* out);
@@ -251,14 +248,14 @@ SDL_STBIMG_DEF bool STBIMG_stbi_callback_from_RW(SDL_RWops* src, STBIMG_stbio_RW
 // src must at least support SDL_RWread()/SDL_ReadIO() and SDL_RWsize()/SDL_GetIOSize
 // if you set freesrc to true, SDL_RWclose(src)/SDL_CloseIO(src) will be executed after reading.
 // Returns NULL on error, use SDL_GetError() to get more information.
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_IO_noSeek(SDL_IOStream* src, bool freesrc);
 #else
 SDL_STBIMG_DEF SDL_Surface* STBIMG_Load_RW_noSeek(SDL_RWops* src, bool freesrc);
 #endif
 
 // the same for textures (you should probably not use this one, either..)
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
 SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_IO_noSeek(SDL_Renderer* renderer, SDL_IOStream* src, bool freesrc);
 #else
 SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer, SDL_RWops* src, bool freesrc);
@@ -271,7 +268,7 @@ SDL_STBIMG_DEF SDL_Texture* STBIMG_LoadTexture_RW_noSeek(SDL_Renderer* renderer,
 #endif
 
 // provide backwards-compatibility for the function names
-#ifdef SDL_STBIMG_SDL3
+#if SDL_VERSION_ATLEAST(3, 0, 0)
   #define STBIMG_Load_RW STBIMG_Load_IO
   #define STBIMG_LoadTexture_RW STBIMG_LoadTexture_IO
   #define STBIMG_stbi_callback_from_RW STBIMG_stbi_callback_from_IO
