@@ -870,6 +870,10 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  *
  * Visual C++    _MSC_VER
  *
+ * 18.0  (2026)  1950 // Visual Studio 2026 18.0
+ *
+ * 17.14 (2022)  1944
+ * 17.13 (2022)  1943
  * 17.12 (2022)  1942
  * 17.11 (2022)  1941
  * 17.10 (2022)  1940
@@ -884,7 +888,9 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  * 17.1  (2022)  1931
  * 17.0  (2022)  1930 // Visual Studio 2022 RTW ("Release to Web")
  *
- * 16.10 (2019)  1929 // Visual Studio 2019 16.10 and 16.11
+ * 16.11.14 (2019) 1929 _MSVC_STL_UPDATE: 202105 // /std:c++20 complete, incl. library
+ * 16.11 (2019)  1929   _MSVC_STL_UPDATE: 202104
+ * 16.10 (2019)  1929 // Visual Studio 2019 16.10 and 16.11 and 16.11.14
  * 16.8  (2019)  1928 // Visual Studio 2019 16.8 and 16.9
  * 16.7  (2019)  1927
  * 16.6  (2019)  1926
@@ -905,7 +911,7 @@ DG_MISC_DEF size_t DG_strnlen(const char* s, size_t n)
  *
  * 14.0 (2015)   1900
  *
- * Note: from VS 2015 on (*at least* up to VS2022) the compiler redistributable runtimes are
+ * Note: from VS 2015 on (*at least* up to VS2026) the compiler redistributable runtimes are
  *       backwards compatible (e.g. the one for VS2022 also works for binaries created with VS2015)
  *       see https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170
  *
