@@ -1,9 +1,9 @@
 /*
- * Maps SDL2 scancodes to directinput keynums/scancodes.
+ * Maps SDL2/3 scancodes to directinput keynums/scancodes.
  * Useful if you're porting a game that uses dinput scancodes internally
  * (for key bindings etc) or any other lib (like CEGUI) that uses them.
  *
- * (C) 2015 Daniel Gibson
+ * (C) 2015 - 2026 Daniel Gibson
  *
  * Homepage: https://github.com/DanielGibson/Snippets/
  *
@@ -35,7 +35,8 @@
    {
      for(int i = 0; i < SDL_NUM_SCANCODES; ++i)
      {
-       if(scanCodeToKeyNum[i] == keyNum) return (SDL_Scancode)i;
+       if(scanCodeToKeyNum[i] == keyNum)
+           return (SDL_Scancode)i;
      }
    }
    return SDL_SCANCODE_UNKNOWN;
@@ -330,6 +331,9 @@ static int scanCodeToKeyNum[SDL_NUM_SCANCODES] = {
 
 	0xB8,	//	SDL_SCANCODE_MODE = 257,  // this seems to be the AltGr Key? - DIK_RMENU (right alt)
 
+	// from here on (up to the mobile keys at 287+) they're all different in SDL3
+#if !SDL_VERSION_ATLEAST(3, 0, 0) // SDL2
+
 			// These values are mapped from usage page 0x0C (USB consumer page).
 	0x99,	//	SDL_SCANCODE_AUDIONEXT = 258, - DIK_NEXTTRACK
 	0x90,	//	SDL_SCANCODE_AUDIOPREV = 259, - DIK_PREVTRACK, which is DIK_CIRCUMFLEX on japanese keyboards
@@ -366,16 +370,69 @@ static int scanCodeToKeyNum[SDL_NUM_SCANCODES] = {
 	0x0,	//	SDL_SCANCODE_APP2 = 284,
 			// end of Walther-keys
 
+			// (additional media keys from consumer page)
+	0x0,	//	SDL_SCANCODE_AUDIOREWIND = 285,
+	0x0,	//	SDL_SCANCODE_AUDIOFASTFORWARD = 286,
+			// end of additional media keys
+
+#else // SDL3
+			// These values are mapped from usage page 0x0C (USB consumer page).
+	0xDF,	//	DL_SCANCODE_SLEEP = 258, - DIK_SLEEP
+	0xE3,	//	SDL_SCANCODE_WAKE = 259, - DIK_WAKE
+
+	0x0,	//	SDL_SCANCODE_CHANNEL_INCREMENT = 260, // channel increment
+	0x0,	//	SDL_SCANCODE_CHANNEL_DECREMENT = 261, // channel decrement
+
+	0x0,	//	SDL_SCANCODE_MEDIA_PLAY = 262,
+	0x0,	//	SDL_SCANCODE_MEDIA_PAUSE = 263,
+	0x0,	//	SDL_SCANCODE_MEDIA_RECORD = 264,
+	0x0,	//	SDL_SCANCODE_MEDIA_FAST_FORWARD = 265,
+	0x0,	//	SDL_SCANCODE_MEDIA_REWIND = 266,
+	0x99,	//	SDL_SCANCODE_MEDIA_NEXT_TRACK = 267, - DIK_NEXTTRACK
+	0x90,	//	SDL_SCANCODE_MEDIA_PREVIOUS_TRACK = 268, - DIK_PREVTRACK, which is DIK_CIRCUMFLEX on japanese keyboards
+	0xA4,	//	SDL_SCANCODE_MEDIA_STOP = 269, - DIK_MEDIASTOP
+	0x0,	//	SDL_SCANCODE_MEDIA_EJECT = 270,
+	0xA2,	//	SDL_SCANCODE_MEDIA_PLAY_PAUSE = 271, - DIK_PLAYPAUSE
+	0xED,	//	SDL_SCANCODE_MEDIA_SELECT = 272, - DIK_MEDIASELECT
+
+	0x0,	//	SDL_SCANCODE_AC_NEW = 273,
+	0x0,	//	SDL_SCANCODE_AC_OPEN = 274,
+	0x0,	//	SDL_SCANCODE_AC_CLOSE = 275,
+	0x0,	//	SDL_SCANCODE_AC_EXIT = 276,
+	0x0,	//	SDL_SCANCODE_AC_SAVE = 277,
+	0x0,	//	SDL_SCANCODE_AC_PRINT = 278,
+	0x0,	//	SDL_SCANCODE_AC_PROPERTIES = 279,
+
+	0xE5,	//	SDL_SCANCODE_AC_SEARCH = 280, - DIK_WEBSEARCH
+	0xB2,	//	SDL_SCANCODE_AC_HOME = 281, - DIK_WEBHOME
+	0xEA,	//	SDL_SCANCODE_AC_BACK = 282, - DIK_WEBBACK
+	0xE9,	//	SDL_SCANCODE_AC_FORWARD = 283, - DIK_WEBFORWARD
+	0xE8,	//	SDL_SCANCODE_AC_STOP = 284, - DIK_WEBSTOP
+	0xE7,	//	SDL_SCANCODE_AC_REFRESH = 285, - DIK_WEBREFRESH
+	0xE6,	//	SDL_SCANCODE_AC_BOOKMARKS = 286, - DIK_WEBFAVORITES
+
+#endif // SDL3
+
+			// (keys for mobile phones - these are the same for SDL2 and SDL3)
+	0x0,	//	SDL_SCANCODE_SOFTLEFT = 287, // virtual (software-defined) button on bottom left of display
+	0x0,	//	SDL_SCANCODE_SOFTRIGHT = 288, // virtual (software-defined) button on bottom right of display
+	0x0,	//	SDL_SCANCODE_CALL = 289, // accept phone call
+	0x0,	//	SDL_SCANCODE_ENDCALL = 290, // reject phone call
+			// end of keys for mobile phones
+
+
 	// the rest up to 511 are currently not named in SDL
 
-	0, 0, 0, 0, 0, 0,             // 285-290 unused
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 291-300 unused
 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 301-320 unused
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 321-340 unused
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 341-360 unused
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 361-380 unused
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 381-400 unused
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 381-399 unused
+
+	0,	// in SDL3, 400 is SDL_SCANCODE_RESERVED
+		// and 400-500 are reserved for "dynamic keycodes", whatever those are
 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 401-420 unused
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 421-440 unused
