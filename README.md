@@ -10,6 +10,7 @@ Some standalone source files that don't deserve their own repositories.
 | [**imgui_savestyle.cpp**](/imgui_savestyle.cpp) | Addon code for [Dear ImGui](https://github.com/ocornut/imgui/) that reads and writes styles (ImGuiStyle) to .ini-like textfiles, or generates C++ code for them. Released under MIT License, like Dear ImGui. |
 | [**SDL_stbimage.h**](/SDL_stbimage.h) | A public domain header-only C/C++ library for converting images to [SDL](http://libsdl.org) `SDL_Surface*` using [stb_image.h](https://github.com/nothings/stb) - [***List of Functions***]( #list-of-functions-in-sdl_stbimageh) |
 | [**sdl_scancode_to_dinput.h**](/sdl_scancode_to_dinput.h) | One static C array that maps SDL2/SDL3 scancodes to Direct Input keynums (values of those DIK_* constants) - also public domain. |
+| [**XPlatformSockets.h**](/XPlatformSockets.h) | Crossplatform-Sockets-API ("XSA"), abstracting differences between UNIX Sockets (BSD, Linux, macOS, ...) and Winsock ("WSA", on Microsoft Windows) |
 | [**ImgToC.c**](/ImgToC.c) | Commandline tool converting images to .c files with a struct containing the image data. Same format as Gimp's "Export as .c" feature. Needs [stb_image.h](https://github.com/nothings/stb/) |
 
 ## List of functions in [**DG_misc.h**](/DG_misc.h)
