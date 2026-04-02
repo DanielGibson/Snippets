@@ -21,7 +21,8 @@
  */
 
 #if 0 // Usage Example:
- #include "sdl2_scancode_to_dinput.h"
+ #include <SDL.h> // or <SDL3/SDL.h>
+ #include "sdl_scancode_to_dinput.h"
  static int SDLScanCodeToKeyNum(SDL_Scancode sc)
  {
    int idx = (int)sc;
@@ -58,7 +59,7 @@
 	// (#define DIK_ABNT_C2         0x7E    /* Numpad . on Brazilian keyboard */ - system should map this to KP_COMMA or something,
 	//                                         according to USB doc, so probably it doesn't need mapping here)
 
-// maps SDL2 scancodes to directinput keynums/scancodes - dinput_key = scanCodeToKeyNum[(int)your_sdl2_scancode];
+// maps SDL2/3 scancodes to directinput keynums/scancodes - dinput_key = scanCodeToKeyNum[(int)your_sdl_scancode];
 static int scanCodeToKeyNum[SDL_NUM_SCANCODES] = {
 	0x0, 	//	SDL_SCANCODE_UNKNOWN = 0, => 0 should also work for dinput codes as "not assigned/unknown"
 	0x0, 	//	// 1 (unused)
