@@ -380,7 +380,75 @@ size_t dg_sb_add_uint(dg_sb* sb, uint64_t ui)
 
 // Note: I'm not gonna implement a proper float formatter, just use dg_sb_addf(sb, "%f", 1.23);
 
+extern
+size_t dg_sb_insert(dg_sb* sb, size_t pos, const char* data, size_t len);
 
+// insert single char at position pos
+// returns logical length of string after adding c (without terminating \0)
+// returns 0 on error, like out-of-memory
+static inline
+size_t dg_sb_insertc(dg_sb* sb, size_t pos, const char c)
+{
+	return dg_sb_insert(sb, pos, &c, 1);
+}
+
+// insert strlen(c_str) bytes of data to sb at position pos
+// returns logical length of string after adding c_str (without terminating \0)
+// returns 0 on error, like out-of-memory (or if sb->len and len both were 0)
+static inline
+size_t dg_sb_inserts(dg_sb* sb, size_t pos, const char* c_str)
+{
+	size_t len = (c_str != NULL) ? strlen(c_str) : 0;
+	return dg_sb_insert(sb, pos, c_str, len);
+}
+
+// insert other string buffer to sb at position pos
+// returns logical length of string after adding it (without terminating \0)
+// returns 0 on error, like out-of-memory (or if sb->len and other->len both were 0)
+static inline
+size_t dg_sb_insertsb(dg_sb* sb, size_t pos, const dg_sb* other)
+{
+	return other ? dg_sb_insert(sb, pos, other->s, other->len) : sb->len;
+}
+
+
+extern
+size_t dg_sb_insertvf(dg_sb* sb, size_t pos, const char* fmt, va_list ap);
+
+static inline
+size_t dg_sb_insertf(dg_sb* sb, size_t pos, const char* fmt, ...) // TODO: printf-annotation
+{
+	va_list ap;
+	va_start(ap, fmt);
+	size_t ret = dg_sb_insertvf(sb, pos, fmt, ap);
+	va_end(ap);
+	return ret;
+}
+
+extern
+size_t dg_sb_insert_int_ext(dg_sb* sb, size_t pos, int64_t x, int base, const char* prefix);
+
+extern
+size_t dg_sb_insert_uint_ext(dg_sb* sb, size_t pos, uint64_t ux, int base, const char* prefix);
+
+
+// insert an integer, converted to string (as decimal), at position pos
+// returns logical length of string after the operation (without terminating \0)
+// returns 0 on error, like out-of-memory
+static inline
+size_t dg_sb_insert_int(dg_sb* sb, size_t pos, int64_t i)
+{
+	return dg_sb_insert_int_ext(sb, pos, i, 10, NULL);
+}
+
+// insert an unsigned integer, converted to string (as decimal), at position pos
+// returns logical length of string after the operation (without terminating \0)
+// returns 0 on error, like out-of-memory
+static inline
+size_t dg_sb_insert_uint(dg_sb* sb, size_t pos, uint64_t ui)
+{
+	return dg_sb_insert_uint_ext(sb, pos, ui, 10, NULL);
+}
 
 // Create a duplicate of other_sb (same length, same data up to length, possibly different capacity)
 // Just like an dg_sb created with dg_sb_init*(), it must be free'd eventually with dg_sb_free(&my_sb); !
@@ -396,7 +464,7 @@ dg_sb dg_sb_dup(const dg_sb* other_sb)
 extern
 void _dg_sb_onheap_delete_impl(dg_sb** sbp);
 
-// TODO: insert, delete, replace
+// TODO: replace
 
 #ifdef __cplusplus
 } // extern "C"
@@ -440,7 +508,7 @@ dg_sb* dg_sb_new_onheap_incl_data(size_t init_cap)
 		// TODO: OOM
 		return NULL;
 	}
-	
+
 	dg_sb* ret = (dg_sb*)data;
 	if (init_cap > 0) {
 		ret->s = data + sizeof(dg_sb);
@@ -548,24 +616,100 @@ size_t dg_sb_add(dg_sb* sb, const char* data, size_t len)
 		}
 		return sb->len;
 	}
-	size_t ret = 0;
-	if (MAX_SIZE - sb->len > len) {
-		ret = sb->len + len;
-		if (ret >= sb->cap && dg_sb_reserve(sb, ret+1) == 0) {
-			// TODO: OOM
-			return 0;
+
+	dg_sb temp = {0};
+	{
+		uintptr_t d = (uintptr_t)data;
+		uintptr_t s = (uintptr_t)sb->s;
+		if (d > s && d < s + sb->cap) {
+			// data is within sb itself.. can lead to all kinds of trouble
+			// so to be safe just copy it to temp and use that instead
+			if (dg_sb_add(&temp, data, len) == 0) {
+				return 0;
+			}
+			data = temp.s;
 		}
-		memcpy(sb->s + sb->len, data, len);
-		sb->s[ret] = '\0';
-		sb->len = ret;
-	} else {
-		// TODO: overflow
+	}
+
+	// make sure there's space for len more chars
+	if (dg_sb_reserve_add(sb, len) == 0) {
+		if (temp.s != NULL) {
+			dg_sb_free(&temp);
+		}
 		return 0;
+	}
+
+	size_t ret = sb->len + len;
+	memcpy(sb->s + sb->len, data, len);
+	sb->s[ret] = '\0';
+	sb->len = ret;
+
+	if (temp.s != NULL) {
+		dg_sb_free(&temp);
 	}
 	return ret;
 }
 
-size_t dg_sb_addvf(dg_sb* sb, const char* fmt, va_list ap);
+size_t dg_sb_insert(dg_sb* sb, size_t pos, const char* data, size_t len)
+{
+	if (sb == NULL) {
+		assert( 0 && "Don't pass sb = NULL!" );
+		return 0;
+	}
+	if (pos > sb->len) {
+		assert( 0 && "Don't pass a position that's somewhere behind the end!" );
+		return sb->len;
+	}
+	if (len == 0) {
+		if (sb->s == NULL) {
+			// make sure that after adding to a stringbuffer it points to a valid
+			// null-terminated string, even if len == 0
+			assert(sb->len == 0 && sb->cap == 0 && "dg_sb's `s` member may only be NULL if its len and cap are NULL!");
+			sb->s = (char*)"";
+			sb->external_data = true;
+			sb->len = sb->cap = 0;
+		}
+		return sb->len;
+	}
+
+	dg_sb temp = {0};
+	{
+		uintptr_t d = (uintptr_t)data;
+		uintptr_t s = (uintptr_t)sb->s;
+		if (d > s && d < s + sb->cap) {
+			// data is within sb itself.. can lead to all kinds of trouble
+			// so to be safe just copy it to temp and use that instead
+			if (dg_sb_add(&temp, data, len) == 0) {
+				return 0;
+			}
+			data = temp.s;
+		}
+	}
+
+	// make sure there's space for len more chars
+	if (dg_sb_reserve_add(sb, len) == 0) {
+		if (temp.s != NULL) {
+			dg_sb_free(&temp);
+		}
+		return 0;
+	}
+
+	size_t num_move = sb->len - pos;
+	if (num_move > 0) {
+		// move existing string data starting at sb->s[pos] len chars to the right
+		memmove(sb->s + pos + len, sb->s + pos, num_move);
+	}
+	// copy data into place
+	memcpy(sb->s + pos, data, len);
+	sb->len += len;
+	sb->s[sb->len] = '\0';
+	if (temp.s != NULL) {
+		dg_sb_free(&temp);
+	}
+	return sb->len;
+}
+
+size_t dg_sb_addvf(dg_sb* sb, const char* fmt, va_list ap)
 {
 	if (sb == NULL) {
 		assert( 0 && "Don't pass sb = NULL!" );
@@ -603,6 +747,55 @@ size_t dg_sb_addvf(dg_sb* sb, const char* fmt, va_list ap);
 	return ret;
 }
 
+size_t dg_sb_insertvf(dg_sb* sb, size_t pos, const char* fmt, va_list ap)
+{
+	if (sb == NULL) {
+		assert( 0 && "Don't pass sb = NULL!" );
+		return 0;
+	}
+	char buf[16384]; // TODO: what is a good size that easily fits on relevant stacks?
+
+	size_t ret = 0;
+	va_list ap2;
+	va_copy(ap2, ap);
+
+	int len = vsnprintf(buf, sizeof(buf), fmt, ap);
+	if (len < 0) {
+		// TODO: wtf, shouldn't even happen
+		assert( 0 && "your vsnprintf() returned a negative value, that shouldn't happen" );
+		va_end(ap2);
+		return 0;
+	}
+	if (len < sizeof(buf)) {
+		// buf was big enough to hold the whole formatted string, just insert it into sb
+		ret = dg_sb_insert(sb, pos, buf, len);
+	} else {
+		// didn't fit into on-stack buffer - but now we know how long the generated string would be
+		// => reserve required space in target string and print into it directly
+		if (dg_sb_reserve_add(sb, len) > 0) {
+			// move existing data out of the way
+			size_t num_move = sb->len - pos;
+			if (num_move > 0) {
+				// move existing string data starting at sb->s[pos] len chars to the right
+				memmove(sb->s + pos + len, sb->s + pos, num_move);
+			}
+
+			char backup = sb->s[pos+len];
+			vsnprintf(sb->s + pos, len+1, fmt, ap2);
+			// vsnprintf() writes terminating \0, restore that from backup
+			sb->s[pos+len] = backup;
+			sb->len += len;
+			ret = sb->len;
+			sb->s[ret] = '\0';
+		}
+		// else: OOM or overflow, ret can remain 0, if we abort in those cases,
+		//       dg_sb_reserve() will have handled that
+	}
+
+	va_end(ap2);
+	return ret;
+}
+
 size_t dg_sb_delete(dg_sb* sb, size_t pos, size_t n)
 {
 	if (sb == NULL) {
@@ -625,15 +818,15 @@ size_t dg_sb_delete(dg_sb* sb, size_t pos, size_t n)
 		sb->len = pos;
 		return sb->len;
 	}
-	
+
 	// at this point it's certain that there are chars between pos+n and sb->len
 	// that must be moved to pos
-	
+
 	size_t num_move = sb->len - delend;
 	memmove(sb->s + pos, sb->s + delend, num_move);
 	sb->len = pos + num_move; // TODO: or sb->len -= n;
 	sb->s[sb->len] = '\0';
-	
+
 	return sb->len;
 }
 
@@ -767,6 +960,34 @@ size_t dg_sb_add_uint_ext(dg_sb* sb, uint64_t ux, int base, const char* prefix)
 	}
 
 	return FormatUInt(ux, base, sb);
+}
+
+size_t dg_sb_insert_int_ext(dg_sb* sb, size_t pos, int64_t x, int base, const char* prefix)
+{
+	// dg_sb_add_int_ext() does several adds, so with inserts that would be kinda
+	// annoying and expensive, so just format into a temp string buffer backed by
+	// a big enough (unless prefix is massive) stack buffer (avoids allocations)
+	// and insert the result
+	char buf[128];
+	dg_sb sb2 = dg_sb_init_external(buf, sizeof(buf));
+	int ret = 0;
+	if (dg_sb_add_int_ext(&sb2, x, base, prefix) != 0) {
+		ret = dg_sb_insertsb(sb, pos, &sb2);
+	}
+	dg_sb_free(&sb2);
+	return ret;
+}
+
+size_t dg_sb_insert_uint_ext(dg_sb* sb, size_t pos, uint64_t ux, int base, const char* prefix)
+{
+	char buf[128];
+	dg_sb sb2 = dg_sb_init_external(buf, sizeof(buf));
+	int ret = 0;
+	if (dg_sb_add_uint_ext(&sb2, ux, base, prefix) != 0) {
+		ret = dg_sb_insertsb(sb, pos, &sb2);
+	}
+	dg_sb_free(&sb2);
+	return ret;
 }
 
 #ifdef __cplusplus
