@@ -48,19 +48,40 @@
 #include <stdint.h>
 #include <string.h>
 
+// by default, this code aborts your process (with assert() or abort())
+// if memory allocation fails.
+// you can `#define DG_SB_OUT_OF_MEMORY` before including this header to change
+// this behavior (silently ignore, set your own errno-like, ...)
+// The functions will return 0 or NULL or similar when out of memory and not aborting.
+// Note that it's the DG_SB_OUT_OF_MEMORY definition before the DG_STRINGBUFFER_IMPL
+// that counts
+#ifndef DG_SB_OUT_OF_MEMORY
+  #ifndef NDEBUG
+    #define DG_SB_OUT_OF_MEMORY assert( 0 && "Out of Memory (stringbuf too big?!)" );
+  #else // if assertions are disabled, abort instead.
+    #define DG_SB_OUT_OF_MEMORY abort();
+  #endif
+#endif
+
+// by default, this code aborts your process (with assert() or abort())
+// if an integer overflow would happen, e.g. when adding a specified `length` argument
+// to the current length of the stringbuffer.
+// you can `#define DG_SB_OVERFLOW` before including this header to change
+// this behavior (silently ignore, set your own errno-like, ...)
+// The functions will return 0 or NULL or similar when out of memory and not aborting.
+// You should use this consistently, i.e. #define DG_SB_OVERFLOW to the same thing
+// every time in the same project
+#ifndef DG_SB_OVERFLOW
+  #ifndef NDEBUG
+    #define DG_SB_OVERFLOW assert( 0 && "Integer overflow while calculating string buffer size - you probably passed a ridiculous length" );
+  #else // if assertions are disabled, abort instead.
+    #define DG_SB_OVERFLOW abort();
+  #endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#if SIZE_MAX == 0xFFFFFFFFul
-  typedef int32_t dg_ssize_t;
-#elif SIZE_MAX == 0xFFFFFFFFFFFFFFFFull
-  typedef int64_t dg_ssize_t;
-#else
-  #error "Unsupported architecture"
-#endif
-
-#define DG_SSIZE_MAX (SIZE_MAX/2)
 
 typedef struct dg_stringbuf {
 	char* s;
@@ -259,8 +280,8 @@ size_t dg_sb_reserve_add(dg_sb* sb, size_t add_chars)
 		assert( 0 && "Don't pass sb = NULL!" );
 		return 0;
 	}
-	if (SIZE_MAX - sb->len <= add_chars) {
-		// TODO: overflow
+	if (SIZE_MAX - 1 - sb->len <= add_chars) {
+		DG_SB_OVERFLOW
 		return 0;
 	}
 	size_t res = sb->len + add_chars + 1; // +1 for terminating \0
@@ -363,7 +384,7 @@ size_t dg_sb_add_multiple(dg_sb* sb, const char* strings[], size_t num_strings)
 	for (size_t i=0; i < num_strings; ++i) {
 		size_t len = strlen(strings[i]);
 		if (SIZE_MAX - addlen <= len) {
-			// TODO: overflow
+			DG_SB_OVERFLOW
 			return 0;
 		}
 		addlen += len;
@@ -504,7 +525,11 @@ size_t dg_sb_insert_uint(dg_sb* sb, size_t pos, uint64_t ui)
 static inline
 dg_sb dg_sb_dup(const dg_sb* other_sb)
 {
-	dg_sb ret = {0};
+	dg_sb ret = dg_sb_init();
+	if (other_sb == NULL) {
+		assert( 0 && "Don't pass other_sb = NULL!" );
+		return ret;
+	}
 	dg_sb_add(&ret, other_sb->s, other_sb->len);
 	return ret;
 }
@@ -544,7 +569,7 @@ dg_sb dg_sb_init_res(size_t init_capacity)
 	dg_sb ret = {0};
 	ret.s = (char*)malloc(init_capacity);
 	if (ret.s == NULL) {
-		// TODO: OOM
+		DG_SB_OUT_OF_MEMORY
 		return ret;
 	}
 	ret.s[0] = '\0';
@@ -554,13 +579,14 @@ dg_sb dg_sb_init_res(size_t init_capacity)
 
 dg_sb* dg_sb_new_onheap_incl_data(size_t init_cap)
 {
-	if (SIZE_MAX-sizeof(dg_sb) <= init_cap) {
+	if (init_cap >= SIZE_MAX-sizeof(dg_sb)) {
 		assert( 0 && "init_cap way too huge" );
+		DG_SB_OVERFLOW
 		return NULL;
 	}
 	char* data = (char*)malloc(sizeof(dg_sb) + init_cap);
 	if (data == NULL) {
-		// TODO: OOM
+		DG_SB_OUT_OF_MEMORY
 		return NULL;
 	}
 
@@ -633,7 +659,7 @@ size_t dg_sb_reserve(dg_sb* sb, size_t capacity)
 	if (sb->external_data) {
 		b = (char*)malloc(capacity);
 		if (b == NULL) {
-			// TODO: OOM
+			DG_SB_OUT_OF_MEMORY
 			return 0;
 		}
 		if (sb->len > 0) {
@@ -646,7 +672,7 @@ size_t dg_sb_reserve(dg_sb* sb, size_t capacity)
 		//       because realloc() behaves like malloc() if first arg is NULL
 		b = (char*)realloc(sb->s, capacity);
 		if (b == NULL) {
-			// TODO: OOM
+			DG_SB_OUT_OF_MEMORY
 			return 0;
 		}
 	}
@@ -756,9 +782,10 @@ size_t dg_sb_insert(dg_sb* sb, size_t pos, const char* data, size_t len)
 		memmove(sb->s + pos + len, sb->s + pos, num_move);
 	}
 	// copy data into place
+	size_t ret = sb->len + len;
 	memcpy(sb->s + pos, data, len);
-	sb->len += len;
-	sb->s[sb->len] = '\0';
+	sb->s[ret] = '\0';
+	sb->len = ret;
 	if (temp.s != NULL) {
 		dg_sb_free(&temp);
 	}
@@ -868,7 +895,7 @@ size_t dg_sb_delete(dg_sb* sb, size_t pos, size_t n)
 	}
 
 	size_t delend;
-	if (SIZE_MAX - n < pos || (delend = pos+n) >= sb->len ) {
+	if (SIZE_MAX - n <= pos || (delend = pos+n) >= sb->len ) {
 		// everything after pos is to be deleted
 		sb->s[pos] = '\0';
 		sb->len = pos;
