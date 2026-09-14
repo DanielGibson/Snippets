@@ -27,7 +27,14 @@
  */
 #if 0 // Example:
 
-// TODO
+  dg_sb myStringBuffer = dg_sb_init();
+  dg_sb_adds(&myStringBuffer, "Hello, World number ");
+  dg_sb_add_int(&myStringBuffer, 42);
+  dg_sb_addf(&myStringBuffer, "\nBut also, %s bye!\n", byeIsGood ? "good" : "bad");
+
+  printf("myStringBuffer contains: '%s'\n", myStringBuffer.s);
+
+  dg_sb_free(&myStringBuffer);
 
 #endif
 
@@ -94,12 +101,18 @@ dg_sb dg_sb_init_res(size_t init_capacity);
 // create stringbuffer that uses a provided buffer
 // will still allocate heap memory if the provided buffer is too small,
 // so don't forget to call dg_sb_free() eventually!
+// Note: this function doesn't modify the data in buf, so if you're careful
+//       you can use it to pass a buffer that already holds a string,
+//       just set `sb.len = lenOfStringInBuf;`
+//       right after calling `dg_sb sb = dg_sb_init_external(buf, buf_cap);`
+//       (before doing anything else with sb that may write into buf)
 static inline
 dg_sb dg_sb_init_external(char* buf, size_t buf_cap)
 {
 	dg_sb ret = { buf, 0, buf_cap, true };
 	return ret;
 }
+
 
 // frees the data held by a stringbuffer (in sb->s) and resets sb so it's empty
 // like right after dg_sb_init() (which means it can be added to again).
@@ -108,6 +121,39 @@ dg_sb dg_sb_init_external(char* buf, size_t buf_cap)
 // ! created with dg_sb_new_onheap*() use dg_sb_delete_onheap() instead  !
 extern
 void dg_sb_free(dg_sb* sb);
+
+// Feature for GCC and compatibles or C++: a string buffer that gets freed automatically
+// when it goes out of scope, use like:
+//   DG_SB_AUTOFREE sb = dg_sb_init();
+//   dg_sb_adds(&sb, "asdf");
+// kind of like with C++ destructors, so you don't have to remember
+// calling dg_sb_free(&sb) before every return or whatever (though doing won't break anything)
+// See also https://nibblestew.blogspot.com/2016/07/comparing-gcc-c-cleanup-attribute-with.html
+//  or https://omeranson.github.io/blog/2022/06/12/cleanup-attribute-in-C
+#ifdef __GNUC__
+  #define DG_SB_AUTOFREE __attribute__((cleanup(dg_sb_free))) dg_sb
+
+  // other C compilers are not supported, at least MSVC does not support this AFAIK
+
+  // ... but for C++ we can hack something ...
+#elif defined (__cplusplus)
+
+  struct DG_SB_AUTOFREE : public dg_sb {
+	~DG_SB_AUTOFREE() { dg_sb_free(this); }
+
+	DG_SB_AUTOFREE() { s = (char*)""; len = cap = 0; external_data = true; }
+	// allow assignment (works just like in plain C, so you have to be careful,
+	//  nothing is duplicated here!)
+	DG_SB_AUTOFREE(const dg_sb& sb) { *this = sb; }
+	DG_SB_AUTOFREE& operator=(const dg_sb& other) {
+		s = other.s;
+		len = other.len;
+		cap = other.cap;
+		external_data = other.external_data;
+		return *this;
+	}
+  };
+#endif
 
 
 // create stringbuffer that is allocated on the heap, unlike dg_sb_init*() where
@@ -151,6 +197,9 @@ dg_sb* dg_sb_new_onheap_external(char* buf, size_t buf_cap)
 
 // frees a dg_sb* ! that has been allocated with dg_sb_new_onheap*() !
 // sb is expected to be a pointer to dg_sb and will be set to NULL
+//
+// ! this is for stringbuffers that live on the heap, for regular !
+// ! ones created with dg_sb_init*() use dg_sb_free() instead     !
 #define dg_sb_onheap_delete(sb) \
 	_dg_sb_onheap_delete_impl(&(sb))
 
@@ -487,7 +536,7 @@ extern "C" {
 dg_sb dg_sb_init_res(size_t init_capacity)
 {
 	dg_sb ret = {0};
-	ret.s = malloc(init_capacity);
+	ret.s = (char*)malloc(init_capacity);
 	if (ret.s == NULL) {
 		// TODO: OOM
 		return ret;
@@ -514,7 +563,7 @@ dg_sb* dg_sb_new_onheap_incl_data(size_t init_cap)
 		ret->s = data + sizeof(dg_sb);
 		ret->s[0] = '\0';
 	} else {
-		ret->s = "";
+		ret->s = (char*)"";
 	}
 	ret->cap = init_cap;
 	ret->external_data = true;
@@ -543,7 +592,7 @@ void dg_sb_free(dg_sb* sb)
 			}
 		} else {
 			free(sb->s);
-			sb->s = "";
+			sb->s = (char*)"";
 			sb->cap = 0;
 		}
 		sb->len = 0;
@@ -575,7 +624,7 @@ size_t dg_sb_reserve(dg_sb* sb, size_t capacity)
 	}
 	char* b = NULL;
 	if (sb->external_data) {
-		b = malloc(capacity);
+		b = (char*)malloc(capacity);
 		if (b == NULL) {
 			// TODO: OOM
 			return 0;
@@ -588,7 +637,7 @@ size_t dg_sb_reserve(dg_sb* sb, size_t capacity)
 	} else {
 		// Note: this implicitly handles the sb->s = NULL case from dg_sb sb = {0};
 		//       because realloc() behaves like malloc() if first arg is NULL
-		b = realloc(sb->s, capacity);
+		b = (char*)realloc(sb->s, capacity);
 		if (b == NULL) {
 			// TODO: OOM
 			return 0;
@@ -621,7 +670,7 @@ size_t dg_sb_add(dg_sb* sb, const char* data, size_t len)
 	{
 		uintptr_t d = (uintptr_t)data;
 		uintptr_t s = (uintptr_t)sb->s;
-		if (d > s && d < s + sb->cap) {
+		if (d > s && d < s + sb->cap) { // unlikely..
 			// data is within sb itself.. can lead to all kinds of trouble
 			// so to be safe just copy it to temp and use that instead
 			if (dg_sb_add(&temp, data, len) == 0) {
@@ -676,7 +725,7 @@ size_t dg_sb_insert(dg_sb* sb, size_t pos, const char* data, size_t len)
 	{
 		uintptr_t d = (uintptr_t)data;
 		uintptr_t s = (uintptr_t)sb->s;
-		if (d > s && d < s + sb->cap) {
+		if (d > s && d < s + sb->cap) { // unlikely..
 			// data is within sb itself.. can lead to all kinds of trouble
 			// so to be safe just copy it to temp and use that instead
 			if (dg_sb_add(&temp, data, len) == 0) {
@@ -728,7 +777,7 @@ size_t dg_sb_addvf(dg_sb* sb, const char* fmt, va_list ap)
 		va_end(ap2);
 		return 0;
 	}
-	if (len < sizeof(buf)) {
+	if (len < (int)sizeof(buf)) {
 		// buf was big enough to hold the whole formatted string, just append it to sb
 		ret = dg_sb_add(sb, buf, len);
 	} else {
@@ -766,7 +815,7 @@ size_t dg_sb_insertvf(dg_sb* sb, size_t pos, const char* fmt, va_list ap)
 		va_end(ap2);
 		return 0;
 	}
-	if (len < sizeof(buf)) {
+	if (len < (int)sizeof(buf)) {
 		// buf was big enough to hold the whole formatted string, just insert it into sb
 		ret = dg_sb_insert(sb, pos, buf, len);
 	} else {
