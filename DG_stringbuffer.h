@@ -526,6 +526,12 @@ void _dg_sb_onheap_delete_impl(dg_sb** sbp);
 
 #ifdef DG_STRINGBUFFER_IMPL
 
+// size of buffer on the stack used for vsnprintf (in dg_sb_addvf() and .._insertvf())
+// (don't worry, there is a fallback for the rare cases where this is too small)
+#ifndef DG_SB_VSNPRINTF_BUFSIZE
+  #define DG_SB_VSNPRINTF_BUFSIZE 4096
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -594,6 +600,7 @@ void dg_sb_free(dg_sb* sb)
 			free(sb->s);
 			sb->s = (char*)"";
 			sb->cap = 0;
+			sb->external_data = true;
 		}
 		sb->len = 0;
 	}
@@ -764,7 +771,7 @@ size_t dg_sb_addvf(dg_sb* sb, const char* fmt, va_list ap)
 		assert( 0 && "Don't pass sb = NULL!" );
 		return 0;
 	}
-	char buf[16384]; // TODO: what is a good size that easily fits on relevant stacks?
+	char buf[DG_SB_VSNPRINTF_BUFSIZE];
 
 	size_t ret = 0;
 	va_list ap2;
@@ -802,7 +809,7 @@ size_t dg_sb_insertvf(dg_sb* sb, size_t pos, const char* fmt, va_list ap)
 		assert( 0 && "Don't pass sb = NULL!" );
 		return 0;
 	}
-	char buf[16384]; // TODO: what is a good size that easily fits on relevant stacks?
+	char buf[DG_SB_VSNPRINTF_BUFSIZE];
 
 	size_t ret = 0;
 	va_list ap2;
