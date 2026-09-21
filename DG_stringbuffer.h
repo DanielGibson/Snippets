@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Zlib
 /*
  * A stringbuffer/stringbuilder for C99.
  *
@@ -140,17 +141,25 @@ dg_sb dg_sb_init_external(char* buf, size_t buf_cap)
 //
 // ! This is for stringbuffers that live on the stack, for stringbuffers !
 // ! created with dg_sb_new_onheap*() use dg_sb_delete_onheap() instead  !
+// ! (unless you really only want to free the data it holds and not sb itself) !
 extern
 void dg_sb_free(dg_sb* sb);
 
 // Feature for GCC and compatibles or C++: a string buffer that gets freed automatically
 // when it goes out of scope, use like:
-//   DG_SB_AUTOFREE sb = dg_sb_init();
-//   dg_sb_adds(&sb, "asdf");
+//  {
+//    DG_SB_AUTOFREE sb = dg_sb_init();
+//    dg_sb_adds(&sb, "asdf");
+//    // ... whatever else ...
+//  }
+//  // now after the end of the scope sb is automatically free'd
 // kind of like with C++ destructors, so you don't have to remember
 // calling dg_sb_free(&sb) before every return or whatever (though doing won't break anything)
 // See also https://nibblestew.blogspot.com/2016/07/comparing-gcc-c-cleanup-attribute-with.html
 //  or https://omeranson.github.io/blog/2022/06/12/cleanup-attribute-in-C
+// and https://gcc.gnu.org/onlinedocs/gcc/Common-Attributes.html#index-cleanup
+// ! Only use this for local variables in functions, not    !
+// ! function parameters and not global or static variables !
 #ifdef __GNUC__
   #define DG_SB_AUTOFREE __attribute__((cleanup(dg_sb_free))) dg_sb
 
@@ -176,6 +185,14 @@ void dg_sb_free(dg_sb* sb);
   };
 #endif
 
+// "steals" the data owned by sb by returning it and and clearing sb,
+//  so sb is empty and sb_free(sb) doesn't do anything.
+// ! this means that *you* will have to free() the returned data !
+// if sb doesn't own the data, i.e. sb->external_data == true,
+// a copy in newly allocated heap memory is returned.
+extern
+char* dg_sb_steal(dg_sb* sb);
+
 
 // create stringbuffer that is allocated on the heap, unlike dg_sb_init*() where
 // the stringbuffer itself is on the stack and only its data might be on the heap.
@@ -184,7 +201,7 @@ void dg_sb_free(dg_sb* sb);
 // until it's too small, then fresh memory will be allocated on the heap
 // as usual and this buffer behind the dg_sb struct will be unused
 //
-// ! Must be free'd with dg_sb_delete_onheap() !
+// ! Must be free'd with dg_sb_onheap_delete() !
 // returns NULL if out-of-memory (OOM)
 extern
 dg_sb* dg_sb_new_onheap_incl_data(size_t init_cap);
@@ -538,7 +555,7 @@ dg_sb dg_sb_dup(const dg_sb* other_sb)
 extern
 void _dg_sb_onheap_delete_impl(dg_sb** sbp);
 
-// TODO: replace
+// TODO: find, replace
 
 #ifdef __cplusplus
 } // extern "C"
@@ -579,7 +596,7 @@ dg_sb dg_sb_init_res(size_t init_capacity)
 
 dg_sb* dg_sb_new_onheap_incl_data(size_t init_cap)
 {
-	if (init_cap >= SIZE_MAX-sizeof(dg_sb)) {
+	if (init_cap >= SIZE_MAX - sizeof(dg_sb)) {
 		assert( 0 && "init_cap way too huge" );
 		DG_SB_OVERFLOW
 		return NULL;
@@ -681,6 +698,29 @@ size_t dg_sb_reserve(dg_sb* sb, size_t capacity)
 	return capacity;
 }
 
+char* dg_sb_steal(dg_sb* sb)
+{
+	if (sb == NULL) {
+		// TODO: assert() ?
+		return NULL;
+	}
+	char* ret;
+	if (!sb->external_data) {
+		ret = sb->s;
+	} else {
+		ret = malloc(sb->len+1);
+		if (ret == NULL) {
+			DG_SB_OUT_OF_MEMORY
+			return NULL;
+		}
+		memcpy(ret, sb->s, len+1);
+		sb->s[0] = '\0';
+	}
+	sb->s = NULL;
+	sb->cap = sb->len = 0;
+	return ret;
+}
+
 size_t dg_sb_add(dg_sb* sb, const char* data, size_t len)
 {
 	if (sb == NULL) {
@@ -703,7 +743,7 @@ size_t dg_sb_add(dg_sb* sb, const char* data, size_t len)
 	{
 		uintptr_t d = (uintptr_t)data;
 		uintptr_t s = (uintptr_t)sb->s;
-		if (d > s && d < s + sb->cap) { // unlikely..
+		if (d >= s && d < s + sb->cap) { // unlikely..
 			// data is within sb itself.. can lead to all kinds of trouble
 			// so to be safe just copy it to temp and use that instead
 			if (dg_sb_add(&temp, data, len) == 0) {
@@ -758,7 +798,7 @@ size_t dg_sb_insert(dg_sb* sb, size_t pos, const char* data, size_t len)
 	{
 		uintptr_t d = (uintptr_t)data;
 		uintptr_t s = (uintptr_t)sb->s;
-		if (d > s && d < s + sb->cap) { // unlikely..
+		if (d >= s && d < s + sb->cap) { // unlikely..
 			// data is within sb itself.. can lead to all kinds of trouble
 			// so to be safe just copy it to temp and use that instead
 			if (dg_sb_add(&temp, data, len) == 0) {
@@ -1053,7 +1093,7 @@ size_t dg_sb_insert_int_ext(dg_sb* sb, size_t pos, int64_t x, int base, const ch
 	// and insert the result
 	char buf[128];
 	dg_sb sb2 = dg_sb_init_external(buf, sizeof(buf));
-	int ret = 0;
+	size_t ret = 0;
 	if (dg_sb_add_int_ext(&sb2, x, base, prefix) != 0) {
 		ret = dg_sb_insertsb(sb, pos, &sb2);
 	}
@@ -1065,7 +1105,7 @@ size_t dg_sb_insert_uint_ext(dg_sb* sb, size_t pos, uint64_t ux, int base, const
 {
 	char buf[128];
 	dg_sb sb2 = dg_sb_init_external(buf, sizeof(buf));
-	int ret = 0;
+	size_t ret = 0;
 	if (dg_sb_add_uint_ext(&sb2, ux, base, prefix) != 0) {
 		ret = dg_sb_insertsb(sb, pos, &sb2);
 	}
